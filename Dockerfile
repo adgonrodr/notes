@@ -15,8 +15,13 @@ RUN apt-get update && \
     make altinstall && \
     cd .. && rm -rf Python-3.11.0.tgz Python-3.11.0
 
+# Install the required version of pip
+RUN python3.11 -m ensurepip --upgrade && \
+    python3.11 -m pip install --upgrade pip==20.3.4
+
 # Verify installation
-RUN python3.11 --version
+RUN python3.11 --version && \
+    python3.11 -m pip --version
 
 # Set python3.11 as default (optional)
 RUN update-alternatives --install /usr/bin/python3 python3 /usr/local/bin/python3.11 1
