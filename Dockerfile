@@ -26,24 +26,15 @@ RUN python3.11 --version && \
 # Set python3.11 as default (optional)
 RUN update-alternatives --install /usr/bin/python3 python3 /usr/local/bin/python3.11 1
 
-name: Conditional Job Execution
+name: Main Branch Restriction for Workflow Dispatch
 
 on:
-  push:
   workflow_dispatch:
 
 jobs:
-  job1:
-    if: ${{ github.event_name == 'workflow_dispatch' }}
+  run-job:
     runs-on: ubuntu-latest
+    if: ${{ github.ref == 'refs/heads/main' }}  # Restrict to the main branch
     steps:
-      - name: Job 1 step (only runs if triggered by workflow_dispatch)
-        run: echo "Job 1 is running because it was triggered by workflow_dispatch."
-
-  job2:
-    needs: job1
-    if: ${{ github.event_name != 'workflow_dispatch' || success() }}  # Runs if job1 succeeded or if not triggered by workflow_dispatch
-    runs-on: ubuntu-latest
-    steps:
-      - name: Job 2 step
-        run: echo "Job 2 is running."
+      - name: Run only on the main branch
+        run: echo "This workflow is running because it was dispatched on the main branch."
