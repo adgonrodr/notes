@@ -28,13 +28,19 @@ RUN update-alternatives --install /usr/bin/python3 python3 /usr/local/bin/python
 
 name: Main Branch Restriction for Workflow Dispatch
 
+name: Main Branch Restriction for Workflow Dispatch
+
 on:
   workflow_dispatch:
 
 jobs:
   run-job:
     runs-on: ubuntu-latest
-    if: ${{ github.ref == 'refs/heads/main' }}  # Restrict to the main branch
     steps:
-      - name: Run only on the main branch
+      - name: Check if the branch is main
+        if: ${{ github.ref != 'refs/heads/main' }}
+        run: echo "This workflow can only be run from the main branch. Current branch is ${{ github.ref }}."
+      
+      - name: Run only on main branch
+        if: ${{ github.ref == 'refs/heads/main' }}
         run: echo "This workflow is running because it was dispatched on the main branch."
