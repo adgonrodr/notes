@@ -30,17 +30,12 @@ name: Main Branch Restriction for Workflow Dispatch
 
 name: Main Branch Restriction for Workflow Dispatch
 
-on:
-  workflow_dispatch:
-
-jobs:
-  run-job:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check if the branch is main
-        if: ${{ github.ref != 'refs/heads/main' }}
-        run: echo "This workflow can only be run from the main branch. Current branch is ${{ github.ref }}."
-      
-      - name: Run only on main branch
-        if: ${{ github.ref == 'refs/heads/main' }}
-        run: echo "This workflow is running because it was dispatched on the main branch."
+# Read through the CODEOWNERS file line by line and find the team for the directory
+while IFS= read -r line
+do
+  # Check if the line starts with the target directory (with optional trailing slash)
+  if [[ $line == "$TARGET_DIR"* ]]; then
+    TEAM_ENTRY=$(echo "$line" | awk '{print $2}')
+    break
+  fi
+done < "$CODEOWNERS_FILE"
