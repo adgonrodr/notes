@@ -28,14 +28,13 @@ RUN update-alternatives --install /usr/bin/python3 python3 /usr/local/bin/python
 
 #!/bin/bash
 
-# Parameters: Organization name, Team name, GitHub username
-ORG_NAME=$1
-TEAM_NAME=$2
-USER=$3
+# Parameters: GitHub username and the file path to check
+USER=$1
+TARGET_PATH=$2
 
 # Check if the required parameters are provided
-if [ -z "$ORG_NAME" ] || [ -z "$TEAM_NAME" ] || [ -z "$USER" ]; then
-  echo "Usage: $0 <ORG_NAME> <TEAM_NAME> <GITHUB_USERNAME>"
+if [ -z "$USER" ] || [ -z "$TARGET_PATH" ]; then
+  echo "Usage: $0 <GITHUB_USERNAME> <TARGET_PATH>"
   exit 1
 fi
 
@@ -48,6 +47,39 @@ if [ -z "$TOKEN" ]; then
   echo "Error: GitHub Token (GH_TOKEN) not set. Set it as an environment variable."
   exit 1
 fi
+
+# Path to the CODEOWNERS file
+CODEOWNERS_FILE="CODEOWNERS"
+
+# Check if CODEOWNERS file exists
+if [ ! -f "$CODEOWNERS_FILE" ]; then
+  echo "Error: CODEOWNERS file not found in the repository."
+  exit 1
+fi
+
+# Extract the directory from the target path (remove the filename)
+TARGET_DIR=$(dirname "$TARGET_PATH")
+
+# Search for the corresponding team entry in CODEOWNERS
+TEAM_ENTRY=$(grep -E "^${TARGET_DIR}" "$CODEOWNERS_FILE" | awk '{print $2}')
+
+# Check if a team was found for the target directory
+if [ -z "$TEAM_ENTRY" ]; then
+  echo "Error: No team found in CODEOWNERS for directory $TARGET_DIR."
+  exit 1
+fi
+
+# Extract organization and team from the team entry (e.g., @org/team)
+ORG_NAME=$(echo "$TEAM_ENTRY" | cut -d '/' -f1 | sed 's/@//')
+TEAM_NAME=$(echo "$TEAM_ENTRY" | cut -d '/' -f2)
+
+# Check if both org and team were extracted successfully
+if [ -z "$ORG_NAME" ] || [ -z "$TEAM_NAME" ]; then
+  echo "Error: Unable to parse organization and team from CODEOWNERS."
+  exit 1
+fi
+
+echo "Checking if user $USER is part of the team $TEAM_NAME in organization $ORG_NAME..."
 
 # GitHub API endpoint to check team membership
 API_URL="https://api.github.com/orgs/${ORG_NAME}/teams/${TEAM_NAME}/members/${USER}"
