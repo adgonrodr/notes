@@ -1,64 +1,66 @@
-# Collibra Tenant Engine
-
-## Overview
-
-The Collibra Tenant Engine is a comprehensive toolkit designed to simplify integration with Collibra, enabling proactive federated data governance. This engine populates logical metadata, ensures consistency across environments, and triggers Collibra workflows to synchronize and link physical and logical metadata.
-
-The tool supports various input formats, including DM configurations, data contracts, and Snowflake tags, facilitating metadata management within Collibra. It provides pipelines to automate the end-to-end process and includes a Docker image for simplified deployment.
-
-## Features
-
-* Metadata Population: Supports the ingestion of DM configurations, data contracts, and Snowflake tags into Collibra.
-* Metadata Consistency Validation: Ensures logical and physical metadata are consistently aligned across different environments.
-* Workflow Automation: Triggers Collibra workflows for syncing physical and logical metadata.
-* Automated Pipelines: Provides GitHub Actions and CI/CD pipelines to automate the end-to-end process.
-* Dockerized Deployment: Includes a Docker image for easy deployment.
-* DMG Config to Data Contract Translation: Translates DMG configurations into Data Contracts, improving transparency and reducing ambiguity.
-
-## Proactive Federated Data Governance
-
-This engine enables tenants to self-govern their data by defining and approving business metadata before deployment, ensuring alignment with business outcomes. Post-deployment, technical metadata is synced directly from the data platform and linked to the business metadata to maintain consistency.
-
-The engine performs validation checks to ensure metadata consistency across environments. Any discrepancies flagged are addressed before reaching production, blocking non-compliant deployments and reducing the risk of errors and misalignment.
-
-## Repository Structure
-```md
-├── .github
-│   └── workflows
-│       ├── build_docker_image.yml              # GitHub action to build Docker image
-│       ├── deploy_version.yml                  # GitHub action to deploy versions
-│       ├── pull_request_validate.yml           # GitHub action for PR validation
-│       ├── reusable_collibra_utils.yml         # Reusable Collibra-related utilities in workflows
-│       ├── reusable_deploy.yml                 # Reusable deploy utilities in workflows
-│       ├── reusable_pull_request_validate.yml  # Reusable PR validation tasks
-│       └── tag_artifact.yml                    # GitHub action to tag build artifacts
-├── .idea                                       # IDE configuration files
-├── .venv                                       # Virtual environment for Python dependencies
-├── build_scripts
-│   ├── create_venv.sh                          # Script to create virtual environment
-│   ├── github_download_release_file.sh         # Script to download release files from GitHub
-│   └── ZscalerRootCertificate-2048-SHA256.crt  # Zscaler certificate for secure connections
-├── cli
-│   ├── actions                                 # CLI actions and utilities
-│   ├── lib
-│   │   ├── collibra                            # Collibra integration library
-│   │   └── templating                          # Templating resources for metadata operations
-│   └── datamesh-shim                           # DataMesh integration shim
-├── k8s                                         # Kubernetes deployment configuration (if needed)
-├── target                                      # Target build directory for compiled artifacts
-├── .gitignore                                  # List of files and directories to ignore in Git
-├── .pre-commit-config.yaml                     # Pre-commit hooks configuration
-├── build.sh                                    # Build script to compile and package the engine
-├── demo_tenant_run.sh                          # Demo script for running tenant examples
-├── Dockerfile                                  # Dockerfile to build the Docker image for the engine
-├── package-lock.json                           # Package lock file for NPM (if applicable)
-├── README.md                                   # Project documentation and overview
-└── test-requirements.txt                       # Testing dependencies
+```bash
+├── cli                                       # Command-line interface (CLI) utilities
+│   ├── lib                                   # Library for CLI operations
+│   │   ├── templating                        # Folder for templating utilities
+│   │   │   ├── target                        # Target folder for build artifacts
+│   │   │   ├── venv                          # Virtual environment folder for Python dependencies
+│   │   │   ├── .gitignore                    # Git ignore file to exclude files and directories
+│   │   │   ├── .pre-commit-config.yaml       # Pre-commit hook configuration
+│   │   │   ├── generate_schema_docs.sh       # Script to generate schema documentation
+│   │   │   ├── README.md                     # Project documentation and overview
+│   │   │   ├── requirements.txt              # Python project dependencies
+│   │   │   ├── templating-engine.py          # Python script for the templating engine
+│   │   │   ├── tenant_schema.json            # JSON schema file for the tenant configuration
+│   │   │   └── tenant_schema.md              # Markdown file for the tenant schema documentation
 ```
 
-## Build
 
-The Run section is divided into two parts:
+```bash
+├── cli                                      # Command-line interface (CLI) utilities
+│   ├── lib                                  # Library for CLI operations
+│   │   ├── collibra                         # Collibra module for interacting with Collibra API and workflows
+│   │   │   ├── adapter                      # Adapter for connecting with Collibra API
+│   │   │   ├── venv                         # Virtual environment for Python dependencies
+│   │   │   ├── __init__.py                  # Initialization file for the Collibra package
+│   │   │   ├── all_dataproduct_req_body.json # JSON file for all data product request body
+│   │   │   ├── collibra.py                  # Main script for Collibra-related functions
+│   │   │   ├── collibra_linking.py          # Script for linking metadata in Collibra
+│   │   │   ├── collibra_original.py         # Script for original Collibra metadata handling
+│   │   │   ├── collibra_utils.py            # Utility functions for Collibra interactions
+│   │   │   ├── CollibraWorkflowOrchestrator.py # Orchestrator script for Collibra workflows
+│   │   │   ├── dev.env_mapping.json         # Development environment mapping JSON
+│   │   │   ├── enum_action.py               # Enum definitions for various actions
+│   │   │   ├── env_mapping.json             # General environment mapping JSON
+│   │   │   ├── EnvConfigReader.py           # Configuration reader for environment settings
+│   │   │   ├── logger.ini                   # Logger configuration file
+│   │   │   ├── prod.env_mapping.json        # Production environment mapping JSON
+│   │   │   ├── README.md                    # Project documentation and overview
+│   │   │   ├── requirements.txt             # Python dependencies
+│   │   │   ├── Test.py                      # Test script for Collibra functions
+│   │   │   └── uat.env_mapping.json         # UAT environment mapping JSON
+```
 
-	1.	The Templating Engine, which is a required dependency if you’re using DMG Configs as input. It extracts metadata from the DMG Configs and transforms it into a format compatible with the Collibra Tenant Engine.
-	2.	The Collibra Tenant Engine manages and syncs metadata within Collibra, ensuring consistency between logical and physical metadata across environments.
+1. Templating Engine - README Overview
+
+The Templating Engine is designed to streamline the extraction and transformation of metadata from DMG configurations into a format compatible with downstream systems like Collibra. This engine supports various metadata formats, enabling organizations to automate the creation of data contracts and governance artifacts based on predefined templates.
+
+By utilizing this engine, users can reduce manual metadata handling, maintain consistency across environments, and accelerate the integration of data governance processes into their workflows. The engine is highly customizable, with support for templating systems such as Jinja2, ensuring flexibility in metadata management and transformation.
+
+Key features:
+
+	•	Extracts metadata from DMG configurations.
+	•	Transforms metadata into data contracts.
+	•	Supports integration with Collibra for metadata management.
+	•	Customizable templates for diverse use cases.
+
+2. Collibra Tenant Engine Module - README Overview
+
+The Collibra Tenant Engine Module facilitates proactive, federated data governance by automating metadata management within Collibra. This module ensures that logical and physical metadata are synced across different environments, promoting consistency and reducing the risk of discrepancies during deployments.
+
+The engine empowers tenants to self-govern their data by validating business metadata prior to deployment and automatically syncing technical metadata post-deployment. With integrated workflow orchestration and environment mapping, the module ensures that both business and technical metadata remain aligned and compliant with governance policies. The engine also performs critical checks that flag issues in earlier environments to prevent problematic production deployments.
+
+Key features:
+
+	•	Automates the syncing of logical and physical metadata in Collibra.
+	•	Supports pre-deployment validation of business metadata.
+	•	Enables automatic technical metadata synchronization po
