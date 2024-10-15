@@ -23,50 +23,37 @@ The engine performs validation checks to ensure metadata consistency across envi
 
 ## Repository Structure
 ```md
-├── docs
-│   ├── dmg_datacontract.schema.md      # DMG Data Contract specification
-│   ├── original_datacontract.schema.md # Original Data Contract specification from datacontract-cli
-│   ├── platform_schema.md              # Tenant platform config specification
-│   ├── task_schema.md                  # Tenant task configuration specification
-│   ├── tenant_schema.md                # Tenant DMG config specification
-│   └── snowflake_tasks.json            # Snowflake tasks JSON specification
-├── scripts
-│   ├── generate_schema_docs.sh         # Script to auto-generate schema documentation
-├── src
-│   ├── data_contract_engine
-│   │   ├── __init__.py                 # Data Contract Engine module
-│   │   ├── common
-│   │   │   └── cli.py                  # Common CLI utilities
-│   │   ├── collibra_to_data_contract
-│   │   │   ├── __init__.py             # Collibra to Data Contract translation module
-│   │   │   └── dc_templates            # Jinja2 templates for data contract
-│   │   ├── dmg_config_to_data_contract
-│   │   │   └── __init__.py             # DMG Config to Data Contract translation module
-├── tests
-│   ├── integration_test
-│   │   └── test_collibra_integration.py # Integration tests (Work in progress)
-│   ├── unit_test
-│   │   └── test_data_contract_engine.py # Unit tests for Data Contract Engine
-├── docker_build_scripts
-│   ├── Dockerfile                      # Dockerfile to build the Docker image for the engine
-│   ├── build.sh                        # Script to build the project
-├── notebooks
-│   └── data_contract_engine.ipynb       # Jupyter notebook for testing and prototyping
 ├── .github
 │   └── workflows
-│       ├── build_docker_image.yml       # GitHub action to build Docker image
-│       ├── deploy_version.yml           # GitHub action to deploy versions
-│       ├── pull_request_validate.yml    # GitHub action for PR validation
-│       ├── reusable_collibra_utils.yml  # Reusable Collibra utilities in workflows
-│       ├── reusable_deploy.yml          # Reusable deploy utilities in workflows
-│       ├── reusable_pull_request_validate.yml # Reusable PR validation tasks
-│       └── tag_artifact.yml             # GitHub action to tag build artifacts
-├── .gitignore                           # Ignore specific files in Git
-├── requirements.in                      # Project main dependencies
-├── requirements.txt                     # Exact dependencies auto-generated from requirements.in
-├── setup.py                             # Installation script for the project
-├── README.md                            # Project documentation
-└── test-requirements.txt                # Test dependencies
+│       ├── build_docker_image.yml              # GitHub action to build Docker image
+│       ├── deploy_version.yml                  # GitHub action to deploy versions
+│       ├── pull_request_validate.yml           # GitHub action for PR validation
+│       ├── reusable_collibra_utils.yml         # Reusable Collibra-related utilities in workflows
+│       ├── reusable_deploy.yml                 # Reusable deploy utilities in workflows
+│       ├── reusable_pull_request_validate.yml  # Reusable PR validation tasks
+│       └── tag_artifact.yml                    # GitHub action to tag build artifacts
+├── .idea                                       # IDE configuration files
+├── .venv                                       # Virtual environment for Python dependencies
+├── build_scripts
+│   ├── create_venv.sh                          # Script to create virtual environment
+│   ├── github_download_release_file.sh         # Script to download release files from GitHub
+│   └── ZscalerRootCertificate-2048-SHA256.crt  # Zscaler certificate for secure connections
+├── cli
+│   ├── actions                                 # CLI actions and utilities
+│   ├── lib
+│   │   ├── collibra                            # Collibra integration library
+│   │   └── templating                          # Templating resources for metadata operations
+│   └── datamesh-shim                           # DataMesh integration shim
+├── k8s                                         # Kubernetes deployment configuration (if needed)
+├── target                                      # Target build directory for compiled artifacts
+├── .gitignore                                  # List of files and directories to ignore in Git
+├── .pre-commit-config.yaml                     # Pre-commit hooks configuration
+├── build.sh                                    # Build script to compile and package the engine
+├── demo_tenant_run.sh                          # Demo script for running tenant examples
+├── Dockerfile                                  # Dockerfile to build the Docker image for the engine
+├── package-lock.json                           # Package lock file for NPM (if applicable)
+├── README.md                                   # Project documentation and overview
+└── test-requirements.txt                       # Testing dependencies
 ```
 
 ## Build
