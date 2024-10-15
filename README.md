@@ -63,4 +63,6 @@ Key features:
 
 	•	Automates the syncing of logical and physical metadata in Collibra.
 	•	Supports pre-deployment validation of business metadata.
-	•	Enables automatic technical metadata synchronization po
+	•	Enables automatic technical metadata synchronization post-deployment.
+	•	Provides proactive checks and environment mapping to ensure metadata consistency across all stages.
+	•	Triggers Collibra workflows for metadata orchestration.
