@@ -57,3 +57,8 @@ The engine performs validation checks to ensure metadata consistency across envi
 ```
 
 ## Build
+
+The Run section is divided into two parts:
+
+	1.	The Templating Engine, which is a required dependency if you’re using DMG Configs as input. It extracts metadata from the DMG Configs and transforms it into a format compatible with the Collibra Tenant Engine.
+	2.	The Collibra Tenant Engine manages and syncs metadata within Collibra, ensuring consistency between logical and physical metadata across environments.
