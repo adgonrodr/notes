@@ -15,6 +15,12 @@ The tool supports various input formats, including DM configurations, data contr
 * Dockerized Deployment: Includes a Docker image for easy deployment.
 * DMG Config to Data Contract Translation: Translates DMG configurations into Data Contracts, improving transparency and reducing ambiguity.
 
+## Proactive Federated Data Governance
+
+This engine enables tenants to self-govern their data by defining and approving business metadata before deployment, ensuring alignment with business outcomes. Post-deployment, technical metadata is synced directly from the data platform and linked to the business metadata to maintain consistency.
+
+The engine performs validation checks to ensure metadata consistency across environments. Any discrepancies flagged are addressed before reaching production, blocking non-compliant deployments and reducing the risk of errors and misalignment.
+
 ## Repository Structure
 ```md
 ├── docs
