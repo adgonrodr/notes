@@ -1,10 +1,15 @@
 import yaml
 import subprocess
 import sys
-import os
 
-# Load the YAML data contract
 def load_data_contract(yaml_path):
+    """
+    Loads a data contract from a YAML file.
+
+    :param yaml_path: The path to the YAML file containing the data contract.
+    :return: A dictionary representation of the data contract.
+    :raises SystemExit: If there is an error loading the YAML file.
+    """
     with open(yaml_path, 'r') as file:
         try:
             data_contract = yaml.safe_load(file)
@@ -13,8 +18,20 @@ def load_data_contract(yaml_path):
             print(f"Error loading YAML file: {e}")
             sys.exit(1)
 
-# Run DataContract CLI to test the data contract against Snowflake
 def test_data_contract(data_contract_path, snowflake_connection_string):
+    """
+    Tests a data contract against Snowflake using the DataContract CLI.
+
+    This function uses the DataContract CLI to validate the data contract
+    specified in the YAML file against a Snowflake instance. The connection
+    string for Snowflake must be formatted as expected by the CLI.
+
+    :param data_contract_path: The path to the YAML file containing the data contract.
+    :param snowflake_connection_string: The Snowflake connection string, including user, password,
+                                        account, database, schema, warehouse, and role.
+    :return: None
+    :raises SystemExit: If the DataContract CLI command fails to execute.
+    """
     # Load the data contract to confirm the path
     data_contract = load_data_contract(data_contract_path)
     print(f"Data contract loaded: {data_contract}")
@@ -34,10 +51,10 @@ def test_data_contract(data_contract_path, snowflake_connection_string):
         print(f"Error running DataContract CLI: {e.stderr}")
         sys.exit(1)
 
-# Path to your data contract YAML file and Snowflake connection string
-data_contract_path = "path/to/your/data_contract.yaml"
-snowflake_connection_string = "snowflake://<user>:<password>@<account>/<database>/<schema>?warehouse=<warehouse>&role=<role>"
-
-# Test the data contract against Snowflake
 if __name__ == "__main__":
+    # Path to your data contract YAML file and Snowflake connection string
+    data_contract_path = "path/to/your/data_contract.yaml"
+    snowflake_connection_string = "snowflake://<user>:<password>@<account>/<database>/<schema>?warehouse=<warehouse>&role=<role>"
+
+    # Test the data contract against Snowflake
     test_data_contract(data_contract_path, snowflake_connection_string)
