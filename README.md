@@ -58,3 +58,31 @@ if __name__ == "__main__":
 
     # Test the data contract against Snowflake
     test_data_contract(data_contract_path, snowflake_connection_string)
+
+
+
+
+
+    import sys
+import importlib
+
+# Step 1: Attempt to remove the module from sys.modules
+module_name = "example_package"
+if module_name in sys.modules:
+    del sys.modules[module_name]
+
+# Step 2: Modify sys.path to include the directory with your custom module
+sys.path.insert(0, "/path/to/custom")
+
+# Step 3: Import the custom module, which will replace the original
+import example_package as custom_module
+
+# Step 4: Override all references to the original module with the new one
+globals()[module_name] = custom_module
+sys.modules[module_name] = custom_module
+
+# Optional: Remove the custom path from sys.path if it’s no longer needed
+sys.path.pop(0)
+
+# Verify that the new module is now in use
+print(example_package)  # Should output your custom version
