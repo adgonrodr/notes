@@ -92,18 +92,52 @@
             "default": "table",
             "enum": ["table", "view", "object"]
           },
-          "pii": {
-            "type": "boolean",
-            "description": "Indicates if this field contains Personal Identifiable Information (PII)."
-          },
-          "classification": {
-            "type": "string",
-            "description": "The data class defining the sensitivity level for this field, according to the organization's classification scheme.",
-            "examples": ["sensitive", "restricted", "internal", "public"]
+          "fields": {
+            "type": "object",
+            "description": "Specifies a field in the data model. Use the field name (e.g., the column name) as the key.",
+            "additionalProperties": {
+              "type": "object",
+              "title": "Field",
+              "properties": {
+                "pii": {
+                  "type": "boolean",
+                  "description": "Indicates if this field contains Personal Identifiable Information (PII)."
+                },
+                "classification": {
+                  "type": "string",
+                  "description": "The data class defining the sensitivity level for this field, according to the organization's classification scheme.",
+                  "examples": ["sensitive", "restricted", "internal", "public"]
+                },
+                "dmg_display_name": {
+                  "type": "string",
+                  "description": "A human-readable name for the field, typically used in user interfaces."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "A description of the data contained within this field."
+                },
+                "type": {
+                  "type": "string",
+                  "description": "The logical data type of the field (e.g., string, integer, boolean)."
+                },
+                "dmg_physical_type": {
+                  "type": "string",
+                  "description": "The physical data type of the field, specific to the database or storage technology."
+                }
+              },
+              "required": [
+                "pii",
+                "classification",
+                "dmg_display_name",
+                "description",
+                "type",
+                "dmg_physical_type"
+              ],
+              "additionalProperties": true
+            }
           }
         },
-        "required": ["description", "type", "pii", "classification"],
-        "additionalProperties": true
+        "required": ["description", "type", "fields"]
       }
     }
   },
