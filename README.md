@@ -1,88 +1,76 @@
-import yaml
-import subprocess
-import sys
-
-def load_data_contract(yaml_path):
-    """
-    Loads a data contract from a YAML file.
-
-    :param yaml_path: The path to the YAML file containing the data contract.
-    :return: A dictionary representation of the data contract.
-    :raises SystemExit: If there is an error loading the YAML file.
-    """
-    with open(yaml_path, 'r') as file:
-        try:
-            data_contract = yaml.safe_load(file)
-            return data_contract
-        except yaml.YAMLError as e:
-            print(f"Error loading YAML file: {e}")
-            sys.exit(1)
-
-def test_data_contract(data_contract_path, snowflake_connection_string):
-    """
-    Tests a data contract against Snowflake using the DataContract CLI.
-
-    This function uses the DataContract CLI to validate the data contract
-    specified in the YAML file against a Snowflake instance. The connection
-    string for Snowflake must be formatted as expected by the CLI.
-
-    :param data_contract_path: The path to the YAML file containing the data contract.
-    :param snowflake_connection_string: The Snowflake connection string, including user, password,
-                                        account, database, schema, warehouse, and role.
-    :return: None
-    :raises SystemExit: If the DataContract CLI command fails to execute.
-    """
-    # Load the data contract to confirm the path
-    data_contract = load_data_contract(data_contract_path)
-    print(f"Data contract loaded: {data_contract}")
-
-    # Construct the DataContract CLI command
-    command = [
-        "datacontract", "test",  # or 'validate' based on your CLI
-        "--config", data_contract_path,
-        "--connection", snowflake_connection_string  # Adjust this based on CLI options
-    ]
-
-    try:
-        # Execute the DataContract CLI command
-        result = subprocess.run(command, capture_output=True, text=True, check=True)
-        print(f"DataContract CLI Output:\n{result.stdout}")
-    except subprocess.CalledProcessError as e:
-        print(f"Error running DataContract CLI: {e.stderr}")
-        sys.exit(1)
-
-if __name__ == "__main__":
-    # Path to your data contract YAML file and Snowflake connection string
-    data_contract_path = "path/to/your/data_contract.yaml"
-    snowflake_connection_string = "snowflake://<user>:<password>@<account>/<database>/<schema>?warehouse=<warehouse>&role=<role>"
-
-    # Test the data contract against Snowflake
-    test_data_contract(data_contract_path, snowflake_connection_string)
-
-
-
-
-
-    import sys
-import importlib
-
-# Step 1: Attempt to remove the module from sys.modules
-module_name = "example_package"
-if module_name in sys.modules:
-    del sys.modules[module_name]
-
-# Step 2: Modify sys.path to include the directory with your custom module
-sys.path.insert(0, "/path/to/custom")
-
-# Step 3: Import the custom module, which will replace the original
-import example_package as custom_module
-
-# Step 4: Override all references to the original module with the new one
-globals()[module_name] = custom_module
-sys.modules[module_name] = custom_module
-
-# Optional: Remove the custom path from sys.path if it’s no longer needed
-sys.path.pop(0)
-
-# Verify that the new module is now in use
-print(example_package)  # Should output your custom version
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "title": "SimpleDataContractSpecification",
+  "properties": {
+    "dataContractSpecification": {
+      "type": "string",
+      "title": "DataContractSpecificationVersion",
+      "enum": ["1.1.0", "0.9.3", "0.9.2", "0.9.1", "0.9.0"],
+      "description": "Specifies the Data Contract Specification being used."
+    },
+    "id": {
+      "type": "string",
+      "description": "Specifies the identifier of the data contract."
+    },
+    "info": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "The title of the data contract."
+        },
+        "dmg_tenant": {
+          "type": "string",
+          "description": "Specifies the tenant associated with the data contract."
+        },
+        "dmg_tla": {
+          "type": "string",
+          "description": "Specifies the three-letter acronym (TLA) for the data contract."
+        },
+        "version": {
+          "type": "string",
+          "description": "The version of the data contract document."
+        },
+        "dmg_published_schema": {
+          "type": "string",
+          "description": "Specifies the published schema for the data contract."
+        },
+        "dmg_data_product_name": {
+          "type": "string",
+          "description": "Specifies the data product name."
+        },
+        "dmg_data_product_prefix": {
+          "type": "string",
+          "description": "Specifies the prefix for the data product."
+        },
+        "owner": {
+          "type": "string",
+          "description": "The owner responsible for managing the data contract."
+        },
+        "_dmg_steward": {
+          "type": "string",
+          "description": "Specifies the steward for the data contract."
+        },
+        "dmg_custodian": {
+          "type": "string",
+          "description": "Specifies the custodian of the data contract."
+        }
+      },
+      "required": [
+        "title",
+        "dmg_tenant",
+        "dmg_tla",
+        "version",
+        "dmg_published_schema",
+        "dmg_data_product_name",
+        "dmg_data_product_prefix",
+        "owner",
+        "_dmg_steward",
+        "dmg_custodian"
+      ],
+      "description": "Metadata and life cycle information about the data contract."
+    }
+  },
+  "required": ["dataContractSpecification", "id", "info"]
+}
