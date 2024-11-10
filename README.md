@@ -70,6 +70,41 @@
         "dmg_custodian"
       ],
       "description": "Metadata and life cycle information about the data contract."
+    },
+    "models": {
+      "description": "Specifies the logical data model. Use the models name (e.g., the table name) as the key.",
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^[a-zA-Z0-9_-]+$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "title": "Model",
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "type": {
+            "description": "The type of the model. Examples: table, view, object. Default: table.",
+            "type": "string",
+            "title": "ModelType",
+            "default": "table",
+            "enum": ["table", "view", "object"]
+          },
+          "pii": {
+            "type": "boolean",
+            "description": "Indicates if this field contains Personal Identifiable Information (PII)."
+          },
+          "classification": {
+            "type": "string",
+            "description": "The data class defining the sensitivity level for this field, according to the organization's classification scheme.",
+            "examples": ["sensitive", "restricted", "internal", "public"]
+          }
+        },
+        "required": ["description", "type", "pii", "classification"],
+        "additionalProperties": true
+      }
     }
   },
   "required": ["dataContractSpecification", "id", "info"]
