@@ -1,145 +1,129 @@
-{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "title": "SimpleDataContractSpecification",
-  "properties": {
-    "dataContractSpecification": {
-      "type": "string",
-      "title": "DataContractSpecificationVersion",
-      "enum": ["1.1.0", "0.9.3", "0.9.2", "0.9.1", "0.9.0"],
-      "description": "Specifies the Data Contract Specification being used."
-    },
-    "id": {
-      "type": "string",
-      "description": "Specifies the identifier of the data contract."
-    },
-    "info": {
-      "type": "object",
-      "properties": {
-        "title": {
-          "type": "string",
-          "description": "The title of the data contract."
-        },
-        "dmg_tenant": {
-          "type": "string",
-          "description": "Specifies the tenant associated with the data contract."
-        },
-        "dmg_tla": {
-          "type": "string",
-          "description": "Specifies the three-letter acronym (TLA) for the data contract."
-        },
-        "version": {
-          "type": "string",
-          "description": "The version of the data contract document."
-        },
-        "dmg_published_schema": {
-          "type": "string",
-          "description": "Specifies the published schema for the data contract."
-        },
-        "dmg_data_product_name": {
-          "type": "string",
-          "description": "Specifies the data product name."
-        },
-        "dmg_data_product_prefix": {
-          "type": "string",
-          "description": "Specifies the prefix for the data product."
-        },
-        "owner": {
-          "type": "string",
-          "description": "The owner responsible for managing the data contract."
-        },
-        "_dmg_steward": {
-          "type": "string",
-          "description": "Specifies the steward for the data contract."
-        },
-        "dmg_custodian": {
-          "type": "string",
-          "description": "Specifies the custodian of the data contract."
+import os
+import snowflake.connector
+from snowflake.connector import Error
+from cryptography.hazmat.primitives import serialization
+
+class SnowflakeConnection:
+    def __init__(self, account=None, warehouse=None, database=None, schema=None, role=None):
+        """
+        Initialize SnowflakeConnection with connection settings.
+
+        :param account: Snowflake account name. Defaults to environment variable SNOWFLAKE_ACCOUNT.
+        :param warehouse: Snowflake warehouse name. Defaults to environment variable SNOWFLAKE_WAREHOUSE.
+        :param database: Snowflake database name. Defaults to environment variable SNOWFLAKE_DATABASE.
+        :param schema: Snowflake schema name. Defaults to environment variable SNOWFLAKE_SCHEMA.
+        :param role: Snowflake role name. Defaults to environment variable SNOWFLAKE_ROLE.
+        """
+        self.account = account or os.getenv("SNOWFLAKE_ACCOUNT")
+        self.warehouse = warehouse or os.getenv("SNOWFLAKE_WAREHOUSE")
+        self.database = database or os.getenv("SNOWFLAKE_DATABASE")
+        self.schema = schema or os.getenv("SNOWFLAKE_SCHEMA")
+        self.role = role or os.getenv("SNOWFLAKE_ROLE")
+        self.connection = None
+
+    def connect(self, user=None, password=None, private_key=None, private_key_passphrase=None, authenticator=None):
+        """
+        Establish a connection to Snowflake using multiple authentication methods.
+
+        :param user: Snowflake username. Defaults to environment variable SNOWFLAKE_USER.
+        :param password: Snowflake password. Defaults to environment variable SNOWFLAKE_PASSWORD.
+        :param private_key: Path to private key file for key-pair authentication.
+        :param private_key_passphrase: Passphrase for the private key, if encrypted.
+        :param authenticator: Authentication method. Use 'externalbrowser' for browser-based SSO or 'okta' for Okta.
+                              Defaults to None.
+        :return: Connection object if successful, or None if connection fails.
+        """
+        user = user or os.getenv("SNOWFLAKE_USER")
+        password = password or os.getenv("SNOWFLAKE_PASSWORD")
+
+        connection_params = {
+            "account": self.account,
+            "warehouse": self.warehouse,
+            "database": self.database,
+            "schema": self.schema,
+            "role": self.role,
         }
-      },
-      "required": [
-        "title",
-        "dmg_tenant",
-        "dmg_tla",
-        "version",
-        "dmg_published_schema",
-        "dmg_data_product_name",
-        "dmg_data_product_prefix",
-        "owner",
-        "_dmg_steward",
-        "dmg_custodian"
-      ],
-      "description": "Metadata and life cycle information about the data contract."
-    },
-    "models": {
-      "description": "Specifies the logical data model. Use the models name (e.g., the table name) as the key.",
-      "type": "object",
-      "minProperties": 1,
-      "propertyNames": {
-        "pattern": "^[a-zA-Z0-9_-]+$"
-      },
-      "additionalProperties": {
-        "type": "object",
-        "title": "Model",
-        "properties": {
-          "description": {
-            "type": "string"
-          },
-          "type": {
-            "description": "The type of the model. Examples: table, view, object. Default: table.",
-            "type": "string",
-            "title": "ModelType",
-            "default": "table",
-            "enum": ["table", "view", "object"]
-          },
-          "fields": {
-            "type": "object",
-            "description": "Specifies a field in the data model. Use the field name (e.g., the column name) as the key.",
-            "additionalProperties": {
-              "type": "object",
-              "title": "Field",
-              "properties": {
-                "pii": {
-                  "type": "boolean",
-                  "description": "Indicates if this field contains Personal Identifiable Information (PII)."
-                },
-                "classification": {
-                  "type": "string",
-                  "description": "The data class defining the sensitivity level for this field, according to the organization's classification scheme.",
-                  "examples": ["sensitive", "restricted", "internal", "public"]
-                },
-                "dmg_display_name": {
-                  "type": "string",
-                  "description": "A human-readable name for the field, typically used in user interfaces."
-                },
-                "description": {
-                  "type": "string",
-                  "description": "A description of the data contained within this field."
-                },
-                "type": {
-                  "type": "string",
-                  "description": "The logical data type of the field (e.g., string, integer, boolean)."
-                },
-                "dmg_physical_type": {
-                  "type": "string",
-                  "description": "The physical data type of the field, specific to the database or storage technology."
-                }
-              },
-              "required": [
-                "pii",
-                "classification",
-                "dmg_display_name",
-                "description",
-                "type",
-                "dmg_physical_type"
-              ],
-              "additionalProperties": true
-            }
-          }
-        },
-        "required": ["description", "type", "fields"]
-      }
-    }
-  },
-  "required": ["dataContractSpecification", "id", "info"]
-}
+
+        try:
+            if authenticator == "externalbrowser":
+                # External Browser Authentication
+                connection_params.update({"authenticator": "externalbrowser", "user": user})
+            elif private_key:
+                # Key Pair Authentication
+                with open(private_key, "rb") as key_file:
+                    private_key_obj = serialization.load_pem_private_key(
+                        key_file.read(),
+                        password=private_key_passphrase.encode() if private_key_passphrase else None
+                    )
+                connection_params.update({"private_key": private_key_obj, "user": user})
+            else:
+                # Username and Password Authentication
+                connection_params.update({"user": user, "password": password})
+
+            # Attempt to connect to Snowflake
+            self.connection = snowflake.connector.connect(**connection_params)
+            print("Connection to Snowflake established. Testing connection...")
+
+            # Test the connection with a lightweight query
+            cursor = self.connection.cursor()
+            cursor.execute("SELECT 1;")
+            cursor.close()
+
+            print("Connection test successful.")
+            return self.connection
+
+        except Error as e:
+            if self.connection:
+                self.connection.close()
+            print(f"Failed to connect to Snowflake: {e}")
+            return None
+
+    def execute_query(self, query):
+        """
+        Execute a query on the Snowflake database.
+
+        :param query: SQL query string.
+        :return: List of query results or None if query fails.
+        """
+        if not self.connection:
+            print("No active connection. Please connect first.")
+            return None
+
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute(query)
+            results = cursor.fetchall()
+            cursor.close()
+            return results
+        except Error as e:
+            print(f"Failed to execute query: {e}")
+            return None
+
+    def close(self):
+        """
+        Close the Snowflake connection.
+        """
+        if self.connection:
+            self.connection.close()
+            print("Snowflake connection closed.")
+        else:
+            print("No connection to close.")
+
+# Example usage:
+if __name__ == "__main__":
+    # Define connection details through environment variables or directly
+    conn = SnowflakeConnection()
+
+    # Example 1: Username and Password Authentication
+    connection = conn.connect(user="your_username", password="your_password")
+    
+    # Example 2: Key-Pair Authentication
+    # connection = conn.connect(user="your_username", private_key="path_to_private_key.pem", private_key_passphrase="your_passphrase")
+
+    # Example 3: External Browser Authentication
+    # connection = conn.connect(user="your_username", authenticator="externalbrowser")
+
+    if connection:
+        results = conn.execute_query("SELECT CURRENT_DATE;")
+        print(results)
+        conn.close()
