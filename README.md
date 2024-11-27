@@ -11,72 +11,99 @@ HEADERS = {
     "Content-Type": "application/json",
 }
 
-# Function to fetch running tasks
-def fetch_running_tasks():
+def fetch_active_dags():
     """
-    Fetch all running tasks using the Astronomer API.
+    Fetch all active DAGs using the Astronomer API.
     """
     endpoint = f"{ASTRONOMER_API_URL}/dags"
     response = requests.get(endpoint, headers=HEADERS)
-
     if response.status_code == 200:
-        return response.json()  # Return the response as JSON
+        return [dag for dag in response.json().get("dags", []) if dag.get("is_paused") == False]
     else:
         print(f"Failed to fetch DAGs. Status Code: {response.status_code}")
         print(response.text)
         return None
 
-# Function to check for tasks running more than a day
+def fetch_dag_runs(dag_id):
+    """
+    Fetch all DAG runs for a given DAG ID.
+    """
+    endpoint = f"{ASTRONOMER_API_URL}/dags/{dag_id}/dagRuns"
+    response = requests.get(endpoint, headers=HEADERS)
+    if response.status_code == 200:
+        return response.json().get("dag_runs", [])
+    else:
+        print(f"Failed to fetch DAG runs for {dag_id}. Status Code: {response.status_code}")
+        print(response.text)
+        return None
+
+def fetch_task_instances(dag_id, dag_run_id):
+    """
+    Fetch task instances for a specific DAG run.
+    """
+    endpoint = f"{ASTRONOMER_API_URL}/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances"
+    response = requests.get(endpoint, headers=HEADERS)
+    if response.status_code == 200:
+        return response.json().get("task_instances", [])
+    else:
+        print(f"Failed to fetch task instances for DAG Run {dag_run_id}. Status Code: {response.status_code}")
+        print(response.text)
+        return None
+
 def check_long_running_tasks():
     """
-    Check for tasks with the name 'success_task' running for more than 1 day.
+    Check all active DAGs for tasks named 'success_task' running for more than 1 day.
     """
-    tasks = fetch_running_tasks()
-    if not tasks:
+    dags = fetch_active_dags()
+    if not dags:
         return
 
-    # Get the current timestamp
     current_time = datetime.utcnow()
-
     long_running_tasks = []
 
-    for dag in tasks.get("dags", []):
+    for dag in dags:
         dag_id = dag["dag_id"]
-        task_endpoint = f"{ASTRONOMER_API_URL}/dags/{dag_id}/dagRuns"
-        task_response = requests.get(task_endpoint, headers=HEADERS)
+        print(f"Checking DAG: {dag_id}")
 
-        if task_response.status_code == 200:
-            dag_runs = task_response.json()
+        dag_runs = fetch_dag_runs(dag_id)
+        if not dag_runs:
+            continue
 
-            for run in dag_runs:
-                for task in run.get("task_instances", []):
-                    if (
-                        task["task_id"] == "success_task"  # Check for task name
-                        and task["state"] == "running"  # Ensure it's running
-                    ):
-                        start_time = datetime.strptime(task["start_date"], "%Y-%m-%dT%H:%M:%S.%fZ")
-                        duration = current_time - start_time
+        for run in dag_runs:
+            dag_run_id = run.get("run_id")
+            if not dag_run_id:
+                continue
 
-                        if duration > timedelta(days=1):
-                            long_running_tasks.append(
-                                {
-                                    "dag_id": dag_id,
-                                    "run_id": run["run_id"],
-                                    "task_id": task["task_id"],
-                                    "start_time": task["start_date"],
-                                    "duration": str(duration),
-                                }
-                            )
+            task_instances = fetch_task_instances(dag_id, dag_run_id)
+            if not task_instances:
+                continue
 
-    # Print long-running tasks
+            for task in task_instances:
+                if task["task_id"] == "success_task" and task["state"] == "running":
+                    start_time = datetime.strptime(task["start_date"], "%Y-%m-%dT%H:%M:%S.%fZ")
+                    duration = current_time - start_time
+                    if duration > timedelta(days=1):
+                        long_running_tasks.append(
+                            {
+                                "dag_id": dag_id,
+                                "run_id": dag_run_id,
+                                "task_id": task["task_id"],
+                                "start_time": task["start_date"],
+                                "duration": str(duration),
+                            }
+                        )
+
+    # Print the long-running tasks
     if long_running_tasks:
-        print("Tasks running more than 1 day:")
+        print("\nTasks running for more than 1 day:")
         for task in long_running_tasks:
-            print(f"DAG ID: {task['dag_id']}, Task ID: {task['task_id']}, "
-                  f"Run ID: {task['run_id']}, Start Time: {task['start_time']}, Duration: {task['duration']}")
+            print(
+                f"DAG ID: {task['dag_id']}, Task ID: {task['task_id']}, "
+                f"Run ID: {task['run_id']}, Start Time: {task['start_time']}, Duration: {task['duration']}"
+            )
     else:
-        print("No tasks running for more than 1 day.")
+        print("\nNo tasks running for more than 1 day.")
 
-# Run the script
+# Main Execution
 if __name__ == "__main__":
     check_long_running_tasks()
