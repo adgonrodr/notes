@@ -15,10 +15,13 @@ for table in tables:
         rows.append(row)
 
 # Determine all possible attribute keys dynamically
-all_keys = set()
-for row in rows:
-    all_keys.update(row.keys())
-all_keys = sorted(all_keys)  # Sort for consistent column order
+all_keys = list(rows[0].keys())
+
+# Add any additional keys from other rows while preserving the original order
+for row in rows[1:]:
+    for key in row.keys():
+        if key not in all_keys:
+            all_keys.append(key)
 
 # Write to CSV
 output_file = "tables_columns.csv"
