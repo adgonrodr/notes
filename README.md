@@ -1,16 +1,30 @@
-def kill_task(dag_id, dag_run_id, task_id):
-    """
-    Kill (clear) a specific task in a DAG run.
-    """
-    endpoint = f"{ASTRONOMER_API_URL}/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/clear"
-    payload = {
-        "only_failed": False,  # Clear task regardless of its state
-        "reset_dag_runs": False  # Only reset this task, not the entire DAG run
-    }
+# Prepare CSV data
+rows = []
+for table in tables:
+    for column in table["columns"]:
+        # Flatten the table and column details
+        row = {
+            "table_name": table["table_name"],
+            "schema": table["schema"],
+            "column_name": column["column_name"],
+            "data_type": column["data_type"],
+        }
+        # Add attributes as separate columns
+        for key, value in column["attributes"].items():
+            row[key] = value
+        rows.append(row)
 
-    response = requests.post(endpoint, headers=HEADERS, json=payload)
-    if response.status_code == 200:
-        print(f"Successfully killed task {task_id} in DAG {dag_id} (Run ID: {dag_run_id})")
-    else:
-        print(f"Failed to kill task. Status Code: {response.status_code}")
-        print(response.text)
+# Determine all possible attribute keys dynamically
+all_keys = set()
+for row in rows:
+    all_keys.update(row.keys())
+all_keys = sorted(all_keys)  # Sort for consistent column order
+
+# Write to CSV
+output_file = "tables_columns.csv"
+with open(output_file, mode="w", newline="") as file:
+    writer = csv.DictWriter(file, fieldnames=all_keys)
+    writer.writeheader()
+    writer.writerows(rows)
+
+print(f"CSV file '{output_file}' generated successfully.")
