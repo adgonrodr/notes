@@ -1,3 +1,1 @@
-Version cannot be empty. The entity version in Collibra tracks changes to data products and data entities. While an asset’s status evolves through the deployment lifecycle (e.g., development, UAT, production), the version remains a key element for tracking changes.
-
-This versioning system simplifies the approval process. If an entity version has already been approved and remains unchanged, no additional approvals are required for deployment. Once a data product or entity is deployed to production, it becomes immutable, and any further changes require creating a new version.
+I have already addressed all your questions in green in the email below. Additionally, I would like to highlight the importance of another field, dmg_data_product_prefix, which must be unique and follow the format dmg_data_product_prefix "unique_data_product_name>". This is critical because we use it to link logical and physical metadata as part of the automated pipeline in the backend.”
