@@ -75,3 +75,35 @@ match = re.match(r"([A-Z]+)([0-9]+)", cell_reference, re.I)
 
     # Convert row string to zero-based index
     row = int(row_str) - 1
+
+
+def extract_data_from_excel(file_path, column_mapping, start_row):
+    """
+    Extracts data from an Excel file based on the column mapping and starting row.
+
+    Args:
+        file_path (str): Path to the Excel file.
+        column_mapping (dict): Dictionary mapping field names to column letters in the Excel file.
+        start_row (int): The row number (1-indexed) to start reading the data.
+
+    Returns:
+        list[dict]: A list of dictionaries containing the field names and their corresponding values.
+    """
+    # Load the Excel file into a Pandas DataFrame
+    df = pd.read_excel(file_path, header=None)
+    
+    # Skip rows before the specified start_row
+    df = df.iloc[start_row - 1:]
+
+    # Convert column letters to zero-indexed column numbers
+    col_mapping_numeric = {key: ord(col.upper()) - ord('A') for key, col in column_mapping.items()}
+
+    # Create a list of dictionaries based on the column mapping
+    result = []
+    for _, row in df.iterrows():
+        row_dict = {}
+        for field, col_idx in col_mapping_numeric.items():
+            row_dict[field] = row[col_idx]
+        result.append(row_dict)
+    
+    return result
