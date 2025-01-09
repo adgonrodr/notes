@@ -61,3 +61,11 @@ cell_reference_dict = {
     except Exception as e:
         print(f"An error occurred: {e}")
         return {}
+
+
+
+match = re.match(r"([A-Z]+)([0-9]+)", cell_reference, re.I)
+    if not match:
+        raise ValueError(f"Invalid cell reference format: {cell_reference}")
+    
+    column_str, row_str = match.groups()
