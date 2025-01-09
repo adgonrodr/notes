@@ -69,3 +69,9 @@ match = re.match(r"([A-Z]+)([0-9]+)", cell_reference, re.I)
         raise ValueError(f"Invalid cell reference format: {cell_reference}")
     
     column_str, row_str = match.groups()
+    # Convert column string to zero-based index
+    column = sum((ord(char.upper()) - ord('A') + 1) * (26 ** i) 
+                 for i, char in enumerate(reversed(column_str))) - 1
+
+    # Convert row string to zero-based index
+    row = int(row_str) - 1
