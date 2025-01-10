@@ -35,3 +35,12 @@ def extract_entities_from_dataframe(df, mapping):
     
     # Convert the entities dictionary to a list
     return list(entities.values())
+
+def excel_column_to_index(column_label):
+        """
+        Converts an Excel-style column label (e.g., 'A', 'AA') to a zero-based index.
+        """
+        column_index = 0
+        for char in column_label:
+            column_index = column_index * 26 + (ord(char.upper()) - ord('A') + 1)
+        return column_index - 1  # Convert to zero-based index
