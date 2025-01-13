@@ -3,7 +3,12 @@ import sys
 
 def validate_arguments(args):
     """
-    Validates that either the intake file is provided or the API arguments are all provided.
+    Validates the arguments to ensure one of the mutually exclusive sets of arguments is provided.
+
+    :param args: Parsed arguments from argparse
+    :type args: argparse.Namespace
+    :raises argparse.ArgumentError: If the arguments do not meet the specified conditions
+    :return: None
     """
     if args.intake_file:
         # If the intake file is provided, no API arguments should be provided
@@ -15,6 +20,11 @@ def validate_arguments(args):
             raise argparse.ArgumentError(None, "If -f/--intake-file is not provided, all of -a/--api-base, -u/--api-user, and -p/--api-password are required.")
 
 def main():
+    """
+    Main function to parse arguments and enforce argument rules.
+    
+    :return: None
+    """
     parser = argparse.ArgumentParser(description="Process intake file or use API credentials.")
 
     # Intake file argument
