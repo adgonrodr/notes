@@ -1,53 +1,53 @@
-import argparse
-import sys
+import requests
+import pandas as pd
+from io import BytesIO
 
-def validate_arguments(args):
+def get_collibra_attachment_as_dataframe(api_base, api_user, api_password, asset_id, attachment_name=None):
     """
-    Validates the arguments to ensure one of the mutually exclusive sets of arguments is provided.
+    Queries Collibra attachments, downloads the specified Excel file, and loads it as a pandas DataFrame.
 
-    :param args: Parsed arguments from argparse
-    :type args: argparse.Namespace
-    :raises argparse.ArgumentError: If the arguments do not meet the specified conditions
-    :return: None
+    :param api_base: Base URL of the Collibra API
+    :param api_user: Username for the Collibra API
+    :param api_password: Password for the Collibra API
+    :param asset_id: The ID of the asset to query attachments for
+    :param attachment_name: Optional name of the attachment to filter by (default is None)
+    :return: A pandas DataFrame containing the data from the downloaded Excel file
+    :raises Exception: If the API call or file download fails
     """
-    if args.intake_file:
-        # If the intake file is provided, no API arguments should be provided
-        if args.api_base or args.api_user or args.api_password:
-            raise argparse.ArgumentError(None, "If -f/--intake-file is provided, -a/--api-base, -u/--api-user, and -p/--api-password should not be provided.")
-    else:
-        # If the intake file is not provided, all API arguments are required
-        if not (args.api_base and args.api_user and args.api_password):
-            raise argparse.ArgumentError(None, "If -f/--intake-file is not provided, all of -a/--api-base, -u/--api-user, and -p/--api-password are required.")
+    # Authenticate with Collibra
+    session = requests.Session()
+    session.auth = (api_user, api_password)
 
-def main():
-    """
-    Main function to parse arguments and enforce argument rules.
+    # Query attachments for the asset
+    attachments_url = f"{api_base}/rest/2.0/attachments?baseResourceId={asset_id}"
+    response = session.get(attachments_url)
     
-    :return: None
-    """
-    parser = argparse.ArgumentParser(description="Process intake file or use API credentials.")
+    if response.status_code != 200:
+        raise Exception(f"Failed to retrieve attachments: {response.status_code}, {response.text}")
 
-    # Intake file argument
-    parser.add_argument("-f", "--intake-file", help="Path to the intake file")
+    attachments = response.json()
+    
+    # Filter the desired attachment
+    attachment = None
+    for att in attachments:
+        if attachment_name and att['name'] == attachment_name:
+            attachment = att
+            break
+    if not attachment_name and attachments:
+        attachment = attachments[0]  # Default to the first attachment if no name specified
+    
+    if not attachment:
+        raise Exception("No matching attachment found.")
 
-    # API arguments
-    parser.add_argument("-a", "--api-base", help="Base URL for the API")
-    parser.add_argument("-u", "--api-user", help="Username for the API")
-    parser.add_argument("-p", "--api-password", help="Password for the API")
+    # Download the attachment
+    download_url = f"{api_base}/rest/2.0/attachments/{attachment['id']}/file"
+    download_response = session.get(download_url)
+    
+    if download_response.status_code != 200:
+        raise Exception(f"Failed to download attachment: {download_response.status_code}, {download_response.text}")
 
-    args = parser.parse_args()
+    # Load the Excel file as a pandas DataFrame
+    file_content = BytesIO(download_response.content)
+    dataframe = pd.read_excel(file_content)
 
-    try:
-        validate_arguments(args)
-    except argparse.ArgumentError as e:
-        parser.error(str(e))
-        sys.exit(1)
-
-    # If validation passes, you can proceed with your program logic
-    if args.intake_file:
-        print(f"Using intake file: {args.intake_file}")
-    else:
-        print(f"Using API with base URL: {args.api_base}, user: {args.api_user}")
-
-if __name__ == "__main__":
-    main()
+    return dataframe
