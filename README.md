@@ -21,6 +21,11 @@ def compare_dicts(dict1, dict2):
             if not list_equal:
                 differences[path] = list_diff
         elif value1 != value2:
+            # Handle None and 'None' comparison
+            if value1 is None and value2 == 'None':
+                return
+            if value2 is None and value1 == 'None':
+                return
             differences[path] = {"value1": value1, "value2": value2}
 
     def compare_lists(list1, list2, path):
@@ -43,6 +48,11 @@ def compare_dicts(dict1, dict2):
                         equal = False
                         list_diff.append({"index": i, "difference": nested_diff})
                 elif list1[i] != list2[i]:
+                    # Handle None and 'None' comparison
+                    if list1[i] is None and list2[i] == 'None':
+                        continue
+                    if list2[i] is None and list1[i] == 'None':
+                        continue
                     equal = False
                     list_diff.append({"index": i, "value1": list1[i], "value2": list2[i]})
 
@@ -55,6 +65,8 @@ def compare_dicts(dict1, dict2):
         value1 = dict1.get(key)
         value2 = dict2.get(key)
         path = key
+        if value1 is None and value2 is None:
+            continue
         if value1 is None:
             equal = False
             differences[path] = {"value1": None, "value2": value2}
@@ -65,31 +77,3 @@ def compare_dicts(dict1, dict2):
             compare_values(key, value1, value2, path)
 
     return equal and not differences, differences
-
-
-# Example usage
-dict1 = {
-    "name": "Alice",
-    "age": 30,
-    "addresses": [
-        {"city": "London", "postcode": "SW1A 1AA"},
-        {"city": "Paris", "postcode": "75000"}
-    ],
-    "skills": ["Python", "Java"]
-}
-
-dict2 = {
-    "name": "Alice",
-    "age": 31,
-    "addresses": [
-        {"city": "London", "postcode": "SW1A 1AA"},
-        {"city": "Berlin", "postcode": "10115"}
-    ],
-    "skills": ["Python", "C++"]
-}
-
-is_equal, diff = compare_dicts(dict1, dict2)
-
-import json
-print("Equal:", is_equal)
-print("Differences:", json.dumps(diff, indent=4))
