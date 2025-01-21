@@ -10,8 +10,15 @@ def compare_dicts(dict1, dict2):
     """
     differences = {}
 
+    def normalize(value):
+        """Normalize values to ensure consistent comparison."""
+        return None if value in [None, "None"] else value
+
     def compare_values(key, value1, value2, path):
         """Helper function to compare values."""
+        value1 = normalize(value1)
+        value2 = normalize(value2)
+
         if isinstance(value1, dict) and isinstance(value2, dict):
             nested_equal, nested_diff = compare_dicts(value1, value2)
             if not nested_equal:
@@ -21,11 +28,6 @@ def compare_dicts(dict1, dict2):
             if not list_equal:
                 differences[path] = list_diff
         elif value1 != value2:
-            # Handle None and 'None' comparison
-            if value1 is None and value2 == 'None':
-                return
-            if value2 is None and value1 == 'None':
-                return
             differences[path] = {"value1": value1, "value2": value2}
 
     def compare_lists(list1, list2, path):
@@ -37,24 +39,22 @@ def compare_dicts(dict1, dict2):
         for i in range(max_length):
             if i >= len(list1):
                 equal = False
-                list_diff.append({"index": i, "value1": None, "value2": list2[i]})
+                list_diff.append({"index": i, "value1": None, "value2": normalize(list2[i])})
             elif i >= len(list2):
                 equal = False
-                list_diff.append({"index": i, "value1": list1[i], "value2": None})
+                list_diff.append({"index": i, "value1": normalize(list1[i]), "value2": None})
             else:
-                if isinstance(list1[i], dict) and isinstance(list2[i], dict):
-                    nested_equal, nested_diff = compare_dicts(list1[i], list2[i])
+                normalized_value1 = normalize(list1[i])
+                normalized_value2 = normalize(list2[i])
+
+                if isinstance(normalized_value1, dict) and isinstance(normalized_value2, dict):
+                    nested_equal, nested_diff = compare_dicts(normalized_value1, normalized_value2)
                     if not nested_equal:
                         equal = False
                         list_diff.append({"index": i, "difference": nested_diff})
-                elif list1[i] != list2[i]:
-                    # Handle None and 'None' comparison
-                    if list1[i] is None and list2[i] == 'None':
-                        continue
-                    if list2[i] is None and list1[i] == 'None':
-                        continue
+                elif normalized_value1 != normalized_value2:
                     equal = False
-                    list_diff.append({"index": i, "value1": list1[i], "value2": list2[i]})
+                    list_diff.append({"index": i, "value1": normalized_value1, "value2": normalized_value2})
 
         return equal, list_diff
 
@@ -65,15 +65,43 @@ def compare_dicts(dict1, dict2):
         value1 = dict1.get(key)
         value2 = dict2.get(key)
         path = key
-        if value1 is None and value2 is None:
+        if normalize(value1) is None and normalize(value2) is None:
             continue
-        if value1 is None:
+        if normalize(value1) is None:
             equal = False
             differences[path] = {"value1": None, "value2": value2}
-        elif value2 is None:
+        elif normalize(value2) is None:
             equal = False
             differences[path] = {"value1": value1, "value2": None}
         else:
             compare_values(key, value1, value2, path)
 
     return equal and not differences, differences
+
+
+# Example usage
+dict1 = {
+    "name": "Alice",
+    "age": None,
+    "addresses": [
+        {"city": "London", "postcode": None},
+        {"city": "Paris", "postcode": "75000"}
+    ],
+    "skills": ["Python", None]
+}
+
+dict2 = {
+    "name": "Alice",
+    "age": "None",
+    "addresses": [
+        {"city": "London", "postcode": "None"},
+        {"city": "Paris", "postcode": "75000"}
+    ],
+    "skills": ["Python", "None"]
+}
+
+is_equal, diff = compare_dicts(dict1, dict2)
+
+import json
+print("Equal:", is_equal)
+print("Differences:", json.dumps(diff, indent=4))
