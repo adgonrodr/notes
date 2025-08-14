@@ -1,41 +1,60 @@
 from snowflake.snowpark import Session
 from snowflake.snowpark.exceptions import SnowparkSQLException
 
-# ---------------- Configuration ----------------
+# ---------- Configuration (edit as needed) ----------
 DATABASE_NAME = "MY_DB"
-EXCLUDE_SCHEMAS = ["PUBLIC", "INFORMATION_SCHEMA"]   # add others to exclude
-LOOKBACK_DAYS = 30                                    # how far back to scan for DML
+EXCLUDE_SCHEMAS = ["PUBLIC", "INFORMATION_SCHEMA"]  # schemas to skip
+LOOKBACK_DAYS = 30  # set < 0 to remove the time filter altogether
 
-# ---------------- Helper ----------------
 def _ident(name: str) -> str:
-    """Double-quote a Snowflake identifier safely."""
+    """Safely double-quote a Snowflake identifier (for DB/SCHEMA names in SQL)."""
     return '"' + name.replace('"', '""') + '"'
 
-def list_tables_views_last_dml(session: Session,
-                               database: str = DATABASE_NAME,
-                               exclude_schemas: list[str] | None = None,
-                               lookback_days: int = LOOKBACK_DAYS):
+def list_tables_views_last_dml(
+    session: Session,
+    database: str = DATABASE_NAME,
+    exclude_schemas: list[str] | None = None,
+    lookback_days: int = LOOKBACK_DAYS,
+):
     """
-    Build a Snowpark DataFrame listing all tables and views in `database`,
-    with creation_date, last_insert_date, last_update_date.
+    Returns a Snowpark DataFrame with:
+      db, schema, entity_name, creation_date, last_insert_date, last_update_date
 
-    Preferred path:
-      - SNOWFLAKE.ACCOUNT_USAGE.ACCESS_HISTORY (flatten objects_modified)
-      - Join to SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY on query_id to get query_type
-    Fallback:
-      - INFORMATION_SCHEMA.QUERY_HISTORY table function (best-effort via DIRECT_OBJECTS_ACCESSED)
+    Logic:
+      - Get all tables + views from INFORMATION_SCHEMA (with creation_date).
+      - Preferred path: ACCOUNT_USAGE.ACCESS_HISTORY (flatten objects_modified) joined to
+        ACCOUNT_USAGE.QUERY_HISTORY to classify DML. This is accurate and avoids false positives.
+      - Fallback path: INFORMATION_SCHEMA.QUERY_HISTORY table function (best-effort).
+    Improvements:
+      - If lookback_days < 0, no time filter is applied (scan full retention).
+      - Quote stripping from objectName to ensure joins match metadata (handles "DB"."SCHEMA"."TABLE").
     """
     db_upper = database.upper()
     db_q = _ident(database)
+
     exclude_schemas = [s.upper() for s in (exclude_schemas or [])]
+    exclude_entities_pred = (
+        "AND UPPER(table_schema) NOT IN (" + ", ".join(f"'{s}'" for s in exclude_schemas) + ")"
+        if exclude_schemas else ""
+    )
+    exclude_hist_pred = (
+        "AND UPPER(schema) NOT IN (" + ", ".join(f"'{s}'" for s in exclude_schemas) + ")"
+        if exclude_schemas else ""
+    )
 
-    exclude_pred_entities = ""
-    if exclude_schemas:
-        exclude_pred_entities = "AND UPPER(table_schema) NOT IN (" + ", ".join(f"'{s}'" for s in exclude_schemas) + ")"
-
-    exclude_pred_hist = ""
-    if exclude_schemas:
-        exclude_pred_hist = "AND UPPER(schema) NOT IN (" + ", ".join(f"'{s}'" for s in exclude_schemas) + ")"
+    # Time filter pieces (removed entirely if lookback_days < 0)
+    time_filter_ah = (
+        "" if lookback_days is None or lookback_days < 0
+        else f"AND ah.query_start_time >= DATEADD('day', -{lookback_days}, CURRENT_TIMESTAMP())"
+    )
+    # Build the argument list for the table function dynamically
+    if lookback_days is None or lookback_days < 0:
+        qh_fn_args = "RESULT_LIMIT => 100000"
+    else:
+        qh_fn_args = (
+            f"END_TIME_RANGE_START => DATEADD('day', -{lookback_days}, CURRENT_TIMESTAMP()), "
+            "RESULT_LIMIT => 100000"
+        )
 
     # Base entities (tables + views) with creation dates
     entities_sql = f"""
@@ -48,7 +67,7 @@ def list_tables_views_last_dml(session: Session,
         'TABLE'       AS entity_type
       FROM {db_q}.INFORMATION_SCHEMA.TABLES
       WHERE table_type = 'BASE TABLE'
-        {exclude_pred_entities}
+        {exclude_entities_pred}
       UNION ALL
       SELECT
         table_catalog AS db,
@@ -58,37 +77,36 @@ def list_tables_views_last_dml(session: Session,
         'VIEW'        AS entity_type
       FROM {db_q}.INFORMATION_SCHEMA.VIEWS
       WHERE 1=1
-        {exclude_pred_entities}
+        {exclude_entities_pred}
     )
     """
 
-    # ---------- Preferred: ACCESS_HISTORY + QUERY_HISTORY ----------
-    # ACCESS_HISTORY.objects_modified contains fully-qualified object names (DB.SCHEMA.OBJECT).
-    # We parse them and then join to QUERY_HISTORY to classify DML types.
+    # -------- Preferred: ACCESS_HISTORY + QUERY_HISTORY (accurate) --------
+    # Strip quotes from each part of objectName, then UPPER for consistent joins.
     account_usage_sql = f"""
     {entities_sql},
     ah_flat AS (
       SELECT
-        SPLIT_PART(UPPER(m.value:"objectName"::string), '.', 1) AS db,
-        SPLIT_PART(UPPER(m.value:"objectName"::string), '.', 2) AS schema,
-        SPLIT_PART(UPPER(m.value:"objectName"::string), '.', 3) AS entity_name,
+        REPLACE(SPLIT_PART(UPPER(m.value:"objectName"::string), '.', 1), '"', '') AS db,
+        REPLACE(SPLIT_PART(UPPER(m.value:"objectName"::string), '.', 2), '"', '') AS schema,
+        REPLACE(SPLIT_PART(UPPER(m.value:"objectName"::string), '.', 3), '"', '') AS entity_name,
         ah.query_id,
         ah.query_start_time AS start_time
       FROM SNOWFLAKE.ACCOUNT_USAGE.ACCESS_HISTORY ah,
            LATERAL FLATTEN(input => ah.OBJECTS_MODIFIED) m
-      WHERE ah.query_start_time >= DATEADD('day', -{lookback_days}, CURRENT_TIMESTAMP())
-        AND SPLIT_PART(UPPER(m.value:"objectName"::string), '.', 1) = '{db_upper}'
+      WHERE SPLIT_PART(UPPER(m.value:"objectName"::string), '.', 1) = '{db_upper}'
+        {time_filter_ah}
     ),
     q AS (
       SELECT
         f.db, f.schema, f.entity_name,
-        qh.query_type,
+        qh.QUERY_TYPE AS query_type,
         f.start_time
       FROM ah_flat f
       JOIN SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY qh
         ON qh.query_id = f.query_id
-      WHERE qh.query_type IN ('INSERT','UPDATE','MERGE','COPY')
-        {("AND UPPER(f.schema) NOT IN (" + ", ".join(f"'{s}'" for s in exclude_schemas) + ")") if exclude_schemas else ""}
+      WHERE qh.QUERY_TYPE IN ('INSERT','UPDATE','MERGE','COPY')
+        {exclude_hist_pred}
     ),
     last_insert AS (
       SELECT db, schema, entity_name, MAX(start_time) AS last_insert_date
@@ -117,16 +135,13 @@ def list_tables_views_last_dml(session: Session,
     ORDER BY e.schema, e.entity_name
     """
 
-    # ---------- Fallback: INFORMATION_SCHEMA.QUERY_HISTORY ----------
-    # Best-effort using DIRECT_OBJECTS_ACCESSED (7-day window; may not perfectly map object modified).
+    # -------- Fallback: INFORMATION_SCHEMA.QUERY_HISTORY (best-effort) --------
+    # Strip quotes from objectName parts here as well.
     info_schema_sql = f"""
     {entities_sql},
     qh AS (
       SELECT * FROM TABLE(
-        {db_q}.INFORMATION_SCHEMA.QUERY_HISTORY(
-          END_TIME_RANGE_START => DATEADD('day', -{lookback_days}, CURRENT_TIMESTAMP()),
-          RESULT_LIMIT => 100000
-        )
+        {db_q}.INFORMATION_SCHEMA.QUERY_HISTORY({qh_fn_args})
       )
       WHERE query_type IN ('INSERT','UPDATE','MERGE','COPY')
         AND DATABASE_NAME = '{db_upper}'
@@ -134,11 +149,11 @@ def list_tables_views_last_dml(session: Session,
     ),
     q AS (
       SELECT
-        SPLIT_PART(UPPER(obj.value:"objectName"::string), '.', 1) AS db,
-        SPLIT_PART(UPPER(obj.value:"objectName"::string), '.', 2) AS schema,
-        SPLIT_PART(UPPER(obj.value:"objectName"::string), '.', 3) AS entity_name,
-        qh.QUERY_TYPE                                    AS query_type,
-        qh.START_TIME                                    AS start_time
+        REPLACE(SPLIT_PART(UPPER(obj.value:"objectName"::string), '.', 1), '"', '') AS db,
+        REPLACE(SPLIT_PART(UPPER(obj.value:"objectName"::string), '.', 2), '"', '') AS schema,
+        REPLACE(SPLIT_PART(UPPER(obj.value:"objectName"::string), '.', 3), '"', '') AS entity_name,
+        qh.QUERY_TYPE AS query_type,
+        qh.START_TIME AS start_time
       FROM qh,
            LATERAL FLATTEN(input => qh.DIRECT_OBJECTS_ACCESSED) obj
       WHERE obj.value:"objectDomain"::string IN ('Table')
@@ -170,7 +185,7 @@ def list_tables_views_last_dml(session: Session,
     ORDER BY e.schema, e.entity_name
     """
 
-    # Try ACCESS_HISTORY path first; on permission errors, fall back to INFORMATION_SCHEMA
+    # Try ACCESS_HISTORY first; fall back if not permitted
     try:
         df = session.sql(account_usage_sql)
         df.limit(1).collect()  # validate access
@@ -180,11 +195,12 @@ def list_tables_views_last_dml(session: Session,
         df_fb.limit(1).collect()
         return df_fb
 
-# -------------- Example usage --------------
+# ---------- Example usage ----------
 # session = Session.builder.configs({...}).create()
-# result_df = list_tables_views_last_dml(session,
-#                                        database=DATABASE_NAME,
-#                                        exclude_schemas=EXCLUDE_SCHEMAS,
-#                                        lookback_days=LOOKBACK_DAYS)
-# result_df.show()
-# pdf = result_df.to_pandas()
+# df_result = list_tables_views_last_dml(
+#     session,
+#     database=DATABASE_NAME,
+#     exclude_schemas=EXCLUDE_SCHEMAS,
+#     lookback_days=-1,  # < 0 disables time filter
+# )
+# df_result.show()
