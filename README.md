@@ -1,90 +1,13 @@
-def get_one_result(...):
-    """Return a single result dict from a Collibra-style response.
+The service layer provides a higher-level abstraction over the Client. It maps each API endpoint to a method on a Python class and sets the API base_url from the selected environment at initialization. Under the hood, it leverages the Client to perform all HTTP requests, keeping transport concerns (auth, retries, timeouts) centralized. This design simplifies API usage, enables IDE autocompletion, and adds type-checked interfaces to reduce mistakes when calling the API.
+	•	Maps endpoints to class methods
+	•	Derives base_url from the configured environment on init
+	•	Delegates HTTP calls to the underlying Client (auth/retries/timeouts centralized)
+	•	Enables autocompletion and type-checked calls for safer usage
 
-    Expects a Collibra response payload containing a ``"results"`` list.
-    Behavior:
-      - If ``results`` is empty, returns ``None``.
-      - If ``results`` has exactly one element, returns that element (as ``dict``).
-      - If ``results`` has more than one element, raises ``CustomException``.
 
-    Args:
-      response: Mapping returned by the Collibra API. Must include a ``"results"`` key
-        with a list value.
-      results_key: Optional key name for the results list if your response uses a
-        different field name. Defaults to ``"results"``.
-
-    Returns:
-      dict | None: The single result object if present, otherwise ``None``.
-
-    Raises:
-      CustomException: If more than one result is present.
-      ValueError: If the response does not contain ``results_key`` or if it is not a list.
-      TypeError: If any item inside the results list is not a mapping/dict.
-
-    Examples:
-      One result:
-
-      >>> payload = {"results": [{"id": "123", "name": "Asset A"}]}
-      >>> get_one_result(payload)
-      {'id': '123', 'name': 'Asset A'}
-
-      No results:
-
-      >>> payload = {"results": []}
-      >>> get_one_result(payload) is None
-      True
-
-      Multiple results (raises):
-
-      >>> payload = {"results": [{"id": "1"}, {"id": "2"}]}
-      >>> get_one_result(payload)
-      Traceback (most recent call last):
-      ...
-      CustomException: Expected 0 or 1 result, got 2.
-    """
-    ...
-
-def get_many_result(...):
-    """Return the list of result dicts from a Collibra-style response.
-
-    Expects a Collibra response payload containing a ``"results"`` list.
-    Behavior:
-      - If the response contains ``results`` (even if empty), returns that list.
-      - If the response **does not** contain ``results`` (missing or wrong type),
-        raises ``CustomException``.
-
-    Args:
-      response: Mapping returned by the Collibra API. Must include a ``"results"`` key
-        with a list value.
-      results_key: Optional key name for the results list if your response uses a
-        different field name. Defaults to ``"results"``.
-
-    Returns:
-      list[dict]: The list of result objects (may be empty).
-
-    Raises:
-      CustomException: If the response does not contain ``results_key`` or if it is not a list.
-      TypeError: If any item inside the results list is not a mapping/dict.
-
-    Examples:
-      Many (or some) results:
-
-      >>> payload = {"results": [{"id": "1"}, {"id": "2"}]}
-      >>> get_many_result(payload)
-      [{'id': '1'}, {'id': '2'}]
-
-      Empty results (valid, returns empty list):
-
-      >>> payload = {"results": []}
-      >>> get_many_result(payload)
-      []
-
-      Missing results (raises):
-
-      >>> payload = {"data": []}
-      >>> get_many_result(payload)
-      Traceback (most recent call last):
-      ...
-      CustomException: Response does not contain a valid 'results' list.
-    """
-    ...
+The operations layer is the highest-level abstraction. It exposes a simple interface for business-level tasks—e.g., checking whether a data product has been modified, loading all entities from a data contract, or publishing a data product to Collibra from a data contract. It orchestrates one or more service calls, applies domain rules, handles errors/retries, and returns cohesive, typed results. Under the hood, it leverages the Service layer for all API queries, keeping transport details centralized in the Client.
+	•	Provides task-oriented methods (e.g., check_data_product_modified, load_entities_from_contract, publish_to_collibra)
+	•	Orchestrates multiple Service calls and enforces business rules
+	•	Delegates all I/O to the Service/Client (no direct HTTP)
+	•	Improves consistency, idempotency, and testability
+	•	Returns domain objects/DTOs with clear types
