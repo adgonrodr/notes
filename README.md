@@ -267,3 +267,9 @@ class DataProductStatusCalculator(BaseOperations):
             or removals during publish.
     """
     ...
+
+operations (DataProductOperations): Business-level façade for data-product workflows (change, load, publish).
+loader (DataContractLoader): Parses/validates DMG contracts; queries Collibra; returns DataProductInfo + entities.
+validator (DataProductLifecycleValidator): Checks deploy/promote readiness via local vs remote status reconciliation.
+publisher (DataProductPublisher): Bulk upserts/deletes via Collibra async import and job monitoring.
+status_calculator (DataProductStatusCalculator): Computes ETags/local status and retrieves remote statuses for diffing.
