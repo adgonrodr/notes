@@ -17,3 +17,38 @@ kubectl -n ingress-nginx patch svc ingress-nginx-controller \
 
 # 4) Watch it get an IP from your VNet/subnet
 kubectl -n ingress-nginx get svc ingress-nginx-controller -w
+
+
+
+
+
+kubectl -n ingress-nginx patch deploy ingress-nginx-controller --type merge -p '
+spec:
+  template:
+    spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      - name: varcache
+        emptyDir: {}
+      - name: varrun
+        emptyDir: {}
+      containers:
+      - name: controller
+        securityContext:
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+            add: ["NET_BIND_SERVICE"]
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: varcache
+          mountPath: /var/cache/nginx
+        - name: varrun
+          mountPath: /var/run
+'
