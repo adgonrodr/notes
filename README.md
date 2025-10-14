@@ -87,3 +87,25 @@ kubectl -n ingress-nginx patch deploy ingress-nginx-controller --type='json' -p=
     {"name":"POD_IP","valueFrom":{"fieldRef":{"fieldPath":"status.podIP"}}}
   ]}
 ]'
+
+
+
+      initContainers:
+      - name: seed-etc-nginx
+        image: ${IMG}
+        imagePullPolicy: IfNotPresent
+        command: [\"/bin/sh\",\"-c\"]
+        args:
+          - cp -a /etc/nginx/* /writable-etc-nginx/ &&
+            chown -R 101:101 /writable-etc-nginx
+        securityContext:
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+        volumeMounts:
+        - name: etcnginx
+          mountPath: /writable-etc-nginx
+
+      volumes:
+      - name: etcnginx
+        emptyDir: {}
