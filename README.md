@@ -52,3 +52,29 @@ spec:
         - name: varrun
           mountPath: /var/run
 '
+
+
+
+# Add an ephemeral volume for the SSL dir and mount it
+kubectl -n ingress-nginx patch deploy ingress-nginx-controller --type='json' -p='[
+ {"op":"add","path":"/spec/template/spec/volumes/-","value":{"name":"ssl","emptyDir":{}}},
+ {"op":"add","path":"/spec/template/spec/containers/0/volumeMounts/-","value":{"name":"ssl","mountPath":"/etc/ingress-controller/ssl"}}
+]'
+
+# Rollout + check
+kubectl -n ingress-nginx rollout status deploy/ingress-nginx-controller
+kubectl -n ingress-nginx logs deploy/ingress-nginx-controller | tail -n 50
+
+
+# create or use your wildcard cert
+kubectl -n ingress-nginx create secret tls default-ssl \
+  --cert=your.crt --key=your.key
+
+# tell the controller to use it (append an arg without touching existing ones)
+kubectl -n ingress-nginx patch deploy ingress-nginx-controller --type='json' -p='[
+ {"op":"add","path":"/spec/template/spec/containers/0/args","value":[]},
+ {"op":"add","path":"/spec/template/spec/containers/0/args/-",
+  "value":"--default-ssl-certificate=ingress-nginx/default-ssl"}
+]'
+
+kubectl -n ingress-nginx rollout status deploy/ingress-nginx-controller
