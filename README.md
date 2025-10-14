@@ -78,3 +78,12 @@ kubectl -n ingress-nginx patch deploy ingress-nginx-controller --type='json' -p=
 ]'
 
 kubectl -n ingress-nginx rollout status deploy/ingress-nginx-controller
+
+
+kubectl -n ingress-nginx patch deploy ingress-nginx-controller --type='json' -p='[
+  {"op":"add","path":"/spec/template/spec/containers/0/env","value":[
+    {"name":"POD_NAME","valueFrom":{"fieldRef":{"fieldPath":"metadata.name"}}},
+    {"name":"POD_NAMESPACE","valueFrom":{"fieldRef":{"fieldPath":"metadata.namespace"}}},
+    {"name":"POD_IP","valueFrom":{"fieldRef":{"fieldPath":"status.podIP"}}}
+  ]}
+]'
