@@ -88,3 +88,19 @@ if __name__ == "__main__":
     print("DB =", db)          # -> db
     print("Schema =", schema)  # -> schema
     print(yaml.safe_dump(new_contract, sort_keys=False))
+
+
+    # Ensure the 'servers' dict exists
+dc.setdefault("servers", {})
+
+for env in envs:
+    # Ensure each env dict exists
+    env_cfg = dc["servers"].setdefault(env, {})
+
+    # --- Option A: upsert (overwrite existing values) ---
+    env_cfg["database"] = db
+    env_cfg["schema"]   = schema
+
+    # --- Option B: only set if missing (append semantics) ---
+    # env_cfg.setdefault("database", db)
+    # env_cfg.setdefault("schema", schema)
