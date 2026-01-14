@@ -9,14 +9,12 @@ from openpyxl.utils.cell import coordinate_from_string, column_index_from_string
 
 
 class ColumnSpec(TypedDict, total=False):
-    """Mapping spec for a single dataframe column."""
     sheet_name: str
     start_cell: str
     clear_rows: Optional[int]
 
 
 def _parse_cell(cell: str) -> tuple[int, int]:
-    """Return (row_index, col_index) 1-based for an A1-style address."""
     col_letters, row = coordinate_from_string(cell)
     return int(row), int(column_index_from_string(col_letters))
 
@@ -33,46 +31,18 @@ def _write_column_values(ws, start_cell: str, values: list[object]) -> None:
         ws.cell(row=start_row + i, column=start_col, value=v)
 
 
-def populate_excel_template_by_columns(
+def _populate_by_columns(
+    wb,
     *,
-    template_path: str | Path,
-    output_path: str | Path,
     df: pd.DataFrame,
     mapping: Mapping[str, ColumnSpec],
-) -> Path:
-    """Copy an immutable Excel template and populate cells from DataFrame columns.
-
-    Each key in `mapping` must be a column name in `df`.
-    Each value provides where that column should be written (sheet + start cell).
-    Template structure is not altered (no inserts, no table resizing).
-
-    Args:
-        template_path: Path to the .xlsx template file.
-        output_path: Path where the populated workbook will be saved.
-        df: DataFrame containing the source data.
-        mapping: Dict keyed by DataFrame column name. Example:
-            {
-              "Data Entity": {"sheet_name": "Sheet1", "start_cell": "B15", "clear_rows": 200},
-              "Description": {"sheet_name": "Sheet1", "start_cell": "C15", "clear_rows": 200},
-            }
-
-    Returns:
-        Path to the saved workbook.
-    """
-    template_path = Path(template_path)
-    output_path = Path(output_path)
-
-    if not template_path.exists():
-        raise FileNotFoundError(template_path)
+) -> None:
     if df.empty:
-        raise ValueError("DataFrame is empty, nothing to write.")
+        raise ValueError("One of the provided DataFrames is empty, nothing to write.")
 
-    # Validate mapping columns exist
     missing_cols = [col for col in mapping.keys() if col not in df.columns]
     if missing_cols:
         raise KeyError(f"Missing DataFrame columns required by mapping: {missing_cols}")
-
-    wb = load_workbook(template_path)
 
     for df_col, spec in mapping.items():
         sheet_name = spec["sheet_name"]
@@ -90,28 +60,64 @@ def populate_excel_template_by_columns(
 
         _write_column_values(ws, start_cell, values)
 
+
+def populate_excel_template_two_tables(
+    *,
+    template_path: str | Path,
+    output_path: str | Path,
+    main_df: pd.DataFrame,
+    main_mapping: Mapping[str, ColumnSpec],
+    side_df: pd.DataFrame,
+    side_mapping: Mapping[str, ColumnSpec],
+) -> Path:
+    """Populate two independent table areas in an immutable Excel template."""
+    template_path = Path(template_path)
+    output_path = Path(output_path)
+
+    if not template_path.exists():
+        raise FileNotFoundError(template_path)
+
+    wb = load_workbook(template_path)
+
+    _populate_by_columns(wb, df=main_df, mapping=main_mapping)
+    _populate_by_columns(wb, df=side_df, mapping=side_mapping)
+
     output_path.parent.mkdir(parents=True, exist_ok=True)
     wb.save(output_path)
     return output_path
 
 
-# Example
+# Example usage
 if __name__ == "__main__":
-    df = pd.DataFrame(
+    main_df = pd.DataFrame(
         {
             "Data Entity": ["Customer", "Order"],
             "Description": ["CRM record", "Sales order"],
         }
     )
 
-    mapping = {
+    side_df = pd.DataFrame(
+        {
+            "Metric": ["Total Entities", "Total Fields"],
+            "Value": [2, 15],
+        }
+    )
+
+    main_mapping = {
         "Data Entity": {"sheet_name": "Sheet1", "start_cell": "B15", "clear_rows": 200},
         "Description": {"sheet_name": "Sheet1", "start_cell": "C15", "clear_rows": 200},
     }
 
-    populate_excel_template_by_columns(
+    side_mapping = {
+        "Metric": {"sheet_name": "Sheet1", "start_cell": "H15", "clear_rows": 50},
+        "Value": {"sheet_name": "Sheet1", "start_cell": "I15", "clear_rows": 50},
+    }
+
+    populate_excel_template_two_tables(
         template_path="template.xlsx",
         output_path="output/my_report.xlsx",
-        df=df,
-        mapping=mapping,
+        main_df=main_df,
+        main_mapping=main_mapping,
+        side_df=side_df,
+        side_mapping=side_mapping,
     )
