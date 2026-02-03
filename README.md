@@ -88,7 +88,7 @@
 
 
 {
-  "query": "query EntityDataAttributesTermsAndFlags($entityId: UUID!, $entityToAttrRel: String!, $piiAttrType: String!, $cdeAttrType: String!, $btToAttrRel: String!) { assets(where: { id: { eq: $entityId } }) { id fullName attrs: outgoingRelations(where: { type: { publicId: { eq: $entityToAttrRel } } }) { target { id fullName displayName pii: attributes(where: { type: { publicId: { eq: $piiAttrType } } }) { id value } cde: attributes(where: { type: { publicId: { eq: $cdeAttrType } } }) { id value } businessTerms: incomingRelations(where: { type: { publicId: { eq: $btToAttrRel } } }) { source { id fullName displayName type { publicId } } } } } } }",
+  "query": "query EntityDataAttributesTermsAndFlags($entityId: UUID!, $entityToAttrRel: String!, $piiAttrType: String!, $cdeAttrType: String!, $btToAttrRel: String!) { assets(where: { id: { eq: $entityId } }) { id fullName attrs: outgoingRelations(where: { type: { publicId: { eq: $entityToAttrRel } } }) { target { id fullName displayName pii: booleanAttributes(where: { type: { publicId: { eq: $piiAttrType } } }) { id booleanValue type { publicId } } cde: booleanAttributes(where: { type: { publicId: { eq: $cdeAttrType } } }) { id booleanValue type { publicId } } businessTerms: incomingRelations(where: { type: { publicId: { eq: $btToAttrRel } } }) { source { id fullName displayName type { publicId } } } } } } }",
   "variables": {
     "entityId": "PUT_ENTITY_UUID_HERE",
     "entityToAttrRel": "ENTITY_TO_DATA_ATTRIBUTE_REL_PUBLIC_ID",
