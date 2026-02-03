@@ -100,13 +100,15 @@
 
 ---
 
-query DebugOutgoing($entityId: UUID!) {
-  assets(where: { id: { eq: $entityId } }) {
-    id
-    fullName
-    outgoingRelations {
-      type { publicId }
-      target { id fullName displayName type { publicId } }
-    }
+{
+  "query": "query EntityDataAttributesTermsAndFlags($entityId: UUID!, $entityToAttrRel: String!, $piiAttrType: String!, $cdeAttrType: String!, $btToAttrRel: String!, $limit: Int!, $offset: Int!) { assets(where: { id: { eq: $entityId } }) { id fullName attrs: outgoingRelations(where: { type: { publicId: { eq: $entityToAttrRel } } }, limit: $limit, offset: $offset) { target { id fullName displayName pii: booleanAttributes(where: { type: { publicId: { eq: $piiAttrType } } }) { id booleanValue type { publicId } } cde: booleanAttributes(where: { type: { publicId: { eq: $cdeAttrType } } }) { id booleanValue type { publicId } } businessTerms: incomingRelations(where: { type: { publicId: { eq: $btToAttrRel } } }) { source { id fullName displayName type { publicId } } } } } } }",
+  "variables": {
+    "entityId": "PUT_ENTITY_UUID_HERE",
+    "entityToAttrRel": "ENTITY_TO_DATA_ATTRIBUTE_REL_PUBLIC_ID",
+    "piiAttrType": "PII_ATTRIBUTE_TYPE_PUBLIC_ID",
+    "cdeAttrType": "CDE_ATTRIBUTE_TYPE_PUBLIC_ID",
+    "btToAttrRel": "BUSINESS_TERM_TO_DATA_ATTRIBUTE_REL_PUBLIC_ID",
+    "limit": 200,
+    "offset": 0
   }
 }
