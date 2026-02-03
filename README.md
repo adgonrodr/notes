@@ -83,3 +83,20 @@
     "offset": 0
   }
 }
+
+---
+
+
+{
+  "query": "query DataAttributesWithTermsAndFlags($domainId: UUID, $dataAttributeType: String!, $piiAttrType: String!, $cdeAttrType: String!, $attrToBtRel: String!, $first: Int!, $after: String) { assets(where: { type: { publicId: { eq: $dataAttributeType } }, domain: { id: { eq: $domainId } } }, first: $first, after: $after) { pageInfo { endCursor hasNextPage } nodes { id fullName displayName pii: attributes(where: { type: { publicId: { eq: $piiAttrType } } }) { nodes { id value } } cde: attributes(where: { type: { publicId: { eq: $cdeAttrType } } }) { nodes { id value } } businessTerms: outgoingRelations(where: { type: { publicId: { eq: $attrToBtRel } } }) { nodes { target { id fullName displayName type { publicId } } } } } } }",
+  "variables": {
+    "domainId": "PUT_DOMAIN_UUID_HERE",
+    "dataAttributeType": "DATA_ATTRIBUTE_TYPE_PUBLIC_ID",
+    "piiAttrType": "PII_ATTRIBUTE_TYPE_PUBLIC_ID",
+    "cdeAttrType": "CDE_ATTRIBUTE_TYPE_PUBLIC_ID",
+    "attrToBtRel": "ATTRIBUTE_TO_BUSINESS_TERM_REL_PUBLIC_ID",
+    "first": 200,
+    "after": null
+  }
+}
+
