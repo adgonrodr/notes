@@ -98,3 +98,15 @@
   }
 }
 
+---
+
+query DebugOutgoing($entityId: UUID!) {
+  assets(where: { id: { eq: $entityId } }) {
+    id
+    fullName
+    outgoingRelations {
+      type { publicId }
+      target { id fullName displayName type { publicId } }
+    }
+  }
+}
