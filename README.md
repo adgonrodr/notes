@@ -88,15 +88,13 @@
 
 
 {
-  "query": "query EntityDataAttributesTermsAndFlags($entityId: UUID! $entityToAttrRel: String! $piiAttrType: String! $cdeAttrType: String! $btToAttrRel: String! $attrFirst: Int! $attrAfter: String) { assets(where: { id: { eq: $entityId } }) { id fullName attrs: outgoingRelations(where: { type: { publicId: { eq: $entityToAttrRel } } }, first: $attrFirst, after: $attrAfter) { pageInfo { endCursor hasNextPage } nodes { target { id fullName displayName pii: attributes(where: { type: { publicId: { eq: $piiAttrType } } }) { nodes { id value } } cde: attributes(where: { type: { publicId: { eq: $cdeAttrType } } }) { nodes { id value } } businessTerms: incomingRelations(where: { type: { publicId: { eq: $btToAttrRel } } }) { nodes { source { id fullName displayName type { publicId } } } } } } } } }",
+  "query": "query EntityDataAttributesTermsAndFlags($entityId: UUID!, $entityToAttrRel: String!, $piiAttrType: String!, $cdeAttrType: String!, $btToAttrRel: String!) { assets(where: { id: { eq: $entityId } }) { id fullName attrs: outgoingRelations(where: { type: { publicId: { eq: $entityToAttrRel } } }) { target { id fullName displayName pii: attributes(where: { type: { publicId: { eq: $piiAttrType } } }) { id value } cde: attributes(where: { type: { publicId: { eq: $cdeAttrType } } }) { id value } businessTerms: incomingRelations(where: { type: { publicId: { eq: $btToAttrRel } } }) { source { id fullName displayName type { publicId } } } } } } }",
   "variables": {
     "entityId": "PUT_ENTITY_UUID_HERE",
     "entityToAttrRel": "ENTITY_TO_DATA_ATTRIBUTE_REL_PUBLIC_ID",
     "piiAttrType": "PII_ATTRIBUTE_TYPE_PUBLIC_ID",
     "cdeAttrType": "CDE_ATTRIBUTE_TYPE_PUBLIC_ID",
-    "btToAttrRel": "BUSINESS_TERM_TO_DATA_ATTRIBUTE_REL_PUBLIC_ID",
-    "attrFirst": 200,
-    "attrAfter": null
+    "btToAttrRel": "BUSINESS_TERM_TO_DATA_ATTRIBUTE_REL_PUBLIC_ID"
   }
 }
 
