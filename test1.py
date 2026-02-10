@@ -365,6 +365,27 @@ def parse_tables_with_specs(
 
     return out
 
+def excel_col_to_num(col: str) -> int:
+    """
+    Convert an Excel column label (e.g., 'A', 'FX') to a 1-based column number.
+
+    Args:
+        col: Excel column label.
+
+    Returns:
+        1-based column index (A -> 1, Z -> 26, AA -> 27).
+
+    Raises:
+        ValueError: If `col` is empty or contains non A-Z letters.
+    """
+    s = col.strip().upper()
+    if not s or any(not ("A" <= ch <= "Z") for ch in s):
+        raise ValueError(f"Invalid Excel column: {col!r}")
+
+    num = 0
+    for ch in s:
+        num = num * 26 + (ord(ch) - ord("A") + 1)
+    return num
 
 # ----------------------------
 # Example usage
