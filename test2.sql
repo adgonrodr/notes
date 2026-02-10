@@ -1,12 +1,28 @@
+CREATE OR REPLACE PROCEDURE PARSE_EXCEL_TABLES(
+    STAGE_PATH STRING,          -- Example: '@MY_STAGE/reports/file.xlsx'
+    SHEET_NAME STRING,          -- Example: 'Sheet1'
+    SPECS VARIANT,              -- JSON array of table specs (see example call)
+    HEADER_SEP STRING           -- Example: ' | '
+)
+RETURNS VARIANT
+LANGUAGE PYTHON
+RUNTIME_VERSION = '3.11'
+PACKAGES = ('snowflake-snowpark-python', 'openpyxl', 'pandas')
+HANDLER = 'run'
+AS
+$$
 from __future__ import annotations
 
 import datetime as dt
 import re
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Sequence, Tuple
+from io import BytesIO
+from typing import Dict, List, Optional, Sequence, Tuple, Any
 
 import pandas as pd
 from openpyxl import load_workbook
+from snowflake.snowpark import Session
+from snowflake.snowpark.files import SnowflakeFile
 
 
 def normalise_merged_cells(ws) -> None:
@@ -198,7 +214,7 @@ def slice_block_to_df(
     if not block:
         return pd.DataFrame()
 
-    header_rows = max(0, min(header_rows, len(block)))
+    header_rows = max(0, min(int(header_rows), len(block)))
     header_part = block[:header_rows]
     body = block[header_rows:]
 
@@ -222,14 +238,14 @@ def extract_date_from_row(
     """Extract the first date found in a given grid row.
 
     Handles:
-      - Real Excel date/datetime values (openpyxl returns date/datetime objects)
-      - Exact strings that match one of the provided formats (e.g. "22-Jan-26")
-      - If strict=False, date-like substrings inside longer text
+      - Excel date/datetime cell values
+      - Exact strings matching formats (example: "22-Jan-26")
+      - Substrings inside longer text (when strict is False)
 
     Args:
         grid: 2D grid of worksheet values.
         row: 1-based row index to search.
-        formats: Accepted date formats (datetime.strptime). First format is also output format.
+        formats: Accepted date formats (datetime.strptime). First format is output format.
         strict: If True, only accept full-cell matches. If False, also search substrings.
 
     Returns:
@@ -262,16 +278,14 @@ def extract_date_from_row(
     if strict:
         return None
 
-    date_token_re = re.compile(r"\b(\d{1,2}-[A-Za-z]{3}-\d{2,4})\b")
-
+    token_re = re.compile(r"\b(\d{1,2}-[A-Za-z]{3}-\d{2,4})\b")
     for v in cells:
         if not isinstance(v, str):
             continue
         s = normalise(v)
-        m = date_token_re.search(s)
+        m = token_re.search(s)
         if not m:
             continue
-
         token = m.group(1)
         parts = token.split("-")
         if len(parts) == 3:
@@ -298,7 +312,7 @@ class TableSpec:
         right_col: 1-based right column index (inclusive).
         header_rows: Number of header rows (0..N) to interpret.
         end_row: If provided, use as the table end row. If None, infer the end.
-        max_blank_streak: Only used when end_row is None. Ends the scan after N blank rows.
+        max_blank_streak: Used when end_row is None. Ends the scan after N blank rows.
     """
     name: str
     start_row: int
@@ -309,41 +323,89 @@ class TableSpec:
     max_blank_streak: int = 1
 
 
-def parse_tables_with_specs(
-    xlsx_path: str,
-    sheet_name: str | int = 0,
-    specs: Sequence[TableSpec] = (),
-    header_sep: str = " | ",
-) -> Dict[str, pd.DataFrame]:
-    """Parse multiple tables from a single worksheet using explicit table specs.
-
-    This is designed for report-like Excel sheets where multiple tables exist on one tab,
-    often with merged header cells and 1..N header rows per table.
-
-    Steps:
-      1) Load workbook with openpyxl (preserves merges and cell types).
-      2) Fill merged cells to normalise headers.
-      3) Convert worksheet values into a 2D grid.
-      4) For each TableSpec, slice a rectangular region into a DataFrame.
-         If end_row is None, infer table end based on last row with data.
+def _parse_specs(specs_variant: Any) -> List[TableSpec]:
+    """Convert a Snowflake VARIANT into a list of TableSpec.
 
     Args:
-        xlsx_path: Path to the .xlsx file.
-        sheet_name: Worksheet name or 0-based sheet index.
-        specs: List of TableSpec describing each table.
+        specs_variant: VARIANT expected to be an array of objects.
+
+    Returns:
+        List of TableSpec instances.
+
+    Raises:
+        ValueError: If required fields are missing.
+    """
+    if specs_variant is None:
+        return []
+
+    out: List[TableSpec] = []
+    for item in specs_variant:
+        name = item.get("name")
+        start_row = item.get("start_row")
+        left_col = item.get("left_col")
+        right_col = item.get("right_col")
+        if name is None or start_row is None or left_col is None or right_col is None:
+            raise ValueError("Each spec must include name, start_row, left_col, right_col")
+
+        out.append(
+            TableSpec(
+                name=str(name),
+                start_row=int(start_row),
+                left_col=int(left_col),
+                right_col=int(right_col),
+                header_rows=int(item.get("header_rows", 1)),
+                end_row=(int(item["end_row"]) if item.get("end_row") is not None else None),
+                max_blank_streak=int(item.get("max_blank_streak", 1)),
+            )
+        )
+    return out
+
+
+def _build_scoped_url(session: Session, stage_path: str) -> str:
+    """Build a scoped URL for a staged file path.
+
+    Args:
+        session: Snowpark session.
+        stage_path: File path in stage notation, example '@MY_STAGE/path/file.xlsx'.
+
+    Returns:
+        Scoped URL string to be used with SnowflakeFile.open().
+    """
+    # BUILD_SCOPED_FILE_URL expects a stage file path string.
+    row = session.sql("SELECT BUILD_SCOPED_FILE_URL(?) AS U", params=[stage_path]).collect()[0]
+    return row["U"]
+
+
+def run(session: Session, stage_path: str, sheet_name: str, specs, header_sep: str):
+    """Snowflake stored procedure entrypoint.
+
+    Args:
+        session: Snowpark session.
+        stage_path: Staged file path, example '@MY_STAGE/reports/file.xlsx'.
+        sheet_name: Worksheet name.
+        specs: VARIANT array of table specs.
         header_sep: Separator used when joining multi-row header parts.
 
     Returns:
-        A dict mapping spec.name to the extracted pandas DataFrame.
+        VARIANT object containing extracted tables.
     """
-    wb = load_workbook(xlsx_path, data_only=True)
-    ws = wb[sheet_name] if isinstance(sheet_name, str) else wb.worksheets[sheet_name]
+    scoped_url = _build_scoped_url(session, stage_path)
 
+    with SnowflakeFile.open(scoped_url, mode="rb") as f:
+        content = f.read()
+
+    wb = load_workbook(filename=BytesIO(content), data_only=True)
+    if sheet_name not in wb.sheetnames:
+        raise ValueError(f"Sheet '{sheet_name}' not found. Available: {wb.sheetnames}")
+
+    ws = wb[sheet_name]
     normalise_merged_cells(ws)
     grid = sheet_to_grid(ws)
 
-    out: Dict[str, pd.DataFrame] = {}
-    for spec in specs:
+    table_specs = _parse_specs(specs)
+    result: Dict[str, Any] = {}
+
+    for spec in table_specs:
         end = spec.end_row
         if end is None:
             end = last_data_row_in_span(
@@ -353,29 +415,36 @@ def parse_tables_with_specs(
                 max_blank_streak=spec.max_blank_streak,
             )
 
-        out[spec.name] = slice_block_to_df(
+        df = slice_block_to_df(
             grid=grid,
             top=spec.start_row,
             left=spec.left_col,
             bottom=end,
             right=spec.right_col,
             header_rows=spec.header_rows,
-            header_sep=header_sep,
+            header_sep=header_sep or " | ",
         )
 
-    return out
+        # Convert to JSON-friendly rows (VARIANT)
+        rows = df.where(pd.notna(df), None).to_dict(orient="records")
+        result[spec.name] = {
+            "start_row": spec.start_row,
+            "end_row": end,
+            "header_rows": spec.header_rows,
+            "row_count": len(rows),
+            "rows": rows,
+        }
+
+    return result
+$$;
 
 
-# ----------------------------
-# Example usage
-# ----------------------------
-# specs = [
-#     TableSpec(name="table_a", start_row=2, left_col=1, right_col=8, header_rows=3, end_row=25),
-#     TableSpec(name="table_b", start_row=30, left_col=2, right_col=10, header_rows=1, end_row=None, max_blank_streak=2),
-#     TableSpec(name="table_c", start_row=80, left_col=1, right_col=6, header_rows=2, end_row=120),
-# ]
-#
-# tables = parse_tables_with_specs("input.xlsx", sheet_name="Sheet1", specs=specs)
-# date_str = extract_date_from_row(sheet_to_grid(load_workbook("input.xlsx", data_only=True)["Sheet1"]), 35)
-#
-# tables["table_a"].to_csv("table_a.csv", index=False)
+CALL PARSE_EXCEL_TABLES(
+  '@MY_STAGE/reports/file.xlsx',
+  'Sheet1',
+  PARSE_JSON('[
+    {"name":"summary","start_row":2,"left_col":1,"right_col":8,"header_rows":3,"end_row":25},
+    {"name":"transactions","start_row":30,"left_col":1,"right_col":12,"header_rows":1,"max_blank_streak":2}
+  ]'),
+  ' | '
+);
